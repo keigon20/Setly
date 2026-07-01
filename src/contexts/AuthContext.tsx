@@ -37,6 +37,7 @@ interface AuthContextType {
   firebaseUser: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   isEmailVerified: boolean;
   error: string | null;
   signUp: (email: string, password: string, displayName: string) => Promise<boolean>;
@@ -69,6 +70,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,7 +86,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const tokenResult = await firebaseUser.getIdTokenResult(true);
           console.log('[Auth] forced token refresh, expiration:', tokenResult.expirationTime);
 
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          const [userDoc, adminDoc] = await Promise.all([
+            getDoc(doc(db, 'users', firebaseUser.uid)),
+            getDoc(doc(db, 'admins', firebaseUser.uid)),
+          ]);
+          setIsAdmin(adminDoc.exists());
+
           if (userDoc.exists()) {
             const userData = userDoc.data();
             const resolvedUser = {
@@ -114,6 +121,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } else {
         console.log('[Auth] setUser(null)');
         setUser(null);
+        setIsAdmin(false);
       }
 
       setIsLoading(false);
@@ -335,6 +343,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     firebaseUser,
     isEmailVerified,
     isLoading,
+    isAdmin,
     isAuthenticated: !!user,
     error,
     signUp,

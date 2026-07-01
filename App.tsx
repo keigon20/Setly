@@ -24,6 +24,9 @@ import CommentsScreen from './src/screens/CommentsScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import NotificationSettingsScreen from './src/screens/NotificationSettingsScreen';
+import AchievementsScreen from './src/screens/AchievementsScreen';
+import YearlyRecapScreen from './src/screens/YearlyRecapScreen';
+import AdminScreen from './src/screens/AdminScreen';
 import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import TermsOfUseScreen from './src/screens/TermsOfUseScreen';
 import { MusicEvent } from './src/types';
@@ -44,6 +47,8 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function MainTabs({ navigation, onSignIn }: { navigation: any; onSignIn: () => void }) {
+  const { isAdmin } = useAuth();
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -84,6 +89,15 @@ function MainTabs({ navigation, onSignIn }: { navigation: any; onSignIn: () => v
       >
         {() => <ProfileScreen onSignIn={onSignIn} />}
       </Tab.Screen>
+      {isAdmin && (
+        <Tab.Screen
+          name="Admin"
+          component={AdminScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => <Ionicons name="shield-checkmark" color={color} size={size} />,
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 }
@@ -128,6 +142,8 @@ function AppContent() {
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
+      <Stack.Screen name="Achievements" component={AchievementsScreen} />
+      <Stack.Screen name="YearlyRecap" component={YearlyRecapScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <Stack.Screen name="TermsOfUse" component={TermsOfUseScreen} />
     </Stack.Navigator>

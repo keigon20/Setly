@@ -17,6 +17,8 @@ export type RootStackParamList = {
   Comments: { eventId: string; eventTitle?: string; eventOwnerId: string };
   Notifications: undefined;
   NotificationSettings: undefined;
+  Achievements: undefined;
+  YearlyRecap: undefined;
   Settings: undefined;
   PrivacyPolicy: undefined;
   TermsOfUse: undefined;

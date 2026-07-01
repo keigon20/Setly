@@ -155,6 +155,19 @@ export default function ProfileScreen({ onSignIn }: ProfileScreenProps) {
         )}
       </View>
 
+      <View style={styles.section}>
+        <TouchableOpacity style={styles.navRow} onPress={() => navigation.navigate('Achievements')}>
+          <Ionicons name="trophy-outline" size={20} color={colors.textSecondary} style={styles.navRowIcon} />
+          <Text style={styles.navRowText}>Achievements</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navRow} onPress={() => navigation.navigate('YearlyRecap')}>
+          <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} style={styles.navRowIcon} />
+          <Text style={styles.navRowText}>Yearly Recap</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+        </TouchableOpacity>
+      </View>
+
       {isAuthenticated && (
         <View style={styles.section}>
           <TouchableOpacity style={styles.friendsRow} onPress={() => navigation.navigate('Friends')}>
@@ -311,6 +324,21 @@ const styles = StyleSheet.create({
   infoDate: {
     fontSize: 12,
     color: colors.textTertiary,
+  },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  navRowIcon: {
+    marginRight: 12,
+  },
+  navRowText: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.textPrimary,
   },
   friendsRow: {
     flexDirection: 'row',

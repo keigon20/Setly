@@ -72,19 +72,25 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       orderBy('createdAt', 'desc')
     );
 
-    const unsub = onSnapshot(q, snapshot => {
-      setAllNotifications(snapshot.docs.map(d => ({
-        id: d.id,
-        type: d.data().type,
-        fromUserId: d.data().fromUserId,
-        fromDisplayName: d.data().fromDisplayName,
-        eventId: d.data().eventId,
-        eventTitle: d.data().eventTitle,
-        eventOwnerId: d.data().eventOwnerId,
-        read: d.data().read ?? false,
-        createdAt: d.data().createdAt?.toDate() || new Date(),
-      })));
-    });
+    const unsub = onSnapshot(
+      q,
+      snapshot => {
+        setAllNotifications(snapshot.docs.map(d => ({
+          id: d.id,
+          type: d.data().type,
+          fromUserId: d.data().fromUserId,
+          fromDisplayName: d.data().fromDisplayName,
+          eventId: d.data().eventId,
+          eventTitle: d.data().eventTitle,
+          eventOwnerId: d.data().eventOwnerId,
+          read: d.data().read ?? false,
+          createdAt: d.data().createdAt?.toDate() || new Date(),
+        })));
+      },
+      err => {
+        console.warn('[Notifications] Listener error:', err.code);
+      }
+    );
 
     return () => unsub();
   }, [isAuthenticated, user]);

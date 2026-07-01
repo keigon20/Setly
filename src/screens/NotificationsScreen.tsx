@@ -1,10 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../utils/firebase';
 import { useNotifications } from '../contexts/NotificationsContext';
-import { AppNotification } from '../types';
+import { useEventStore } from '../contexts/EventStoreContext';
+import { AppNotification, MusicEvent } from '../types';
 import { colors } from '../theme';
 import type { RootStackParamList } from '../types/navigation';
 
@@ -25,10 +28,39 @@ function notificationBody(n: AppNotification): string {
   }
 }
 
+async function fetchEvent(eventId: string): Promise<MusicEvent | null> {
+  try {
+    const snap = await getDoc(doc(db, 'events', eventId));
+    if (!snap.exists()) return null;
+    const d = snap.data();
+    return {
+      id: snap.id,
+      title: d.title,
+      artists: d.artists || [],
+      venue: d.venue,
+      date: d.date?.toDate() || new Date(),
+      cost: d.cost || 0,
+      notes: d.notes || '',
+      imageUri: d.imageUri,
+      overallRating: d.overallRating,
+      soundRating: d.soundRating,
+      crowdRating: d.crowdRating,
+      setlistRating: d.setlistRating,
+      isHidden: d.isHidden || false,
+      createdAt: d.createdAt?.toDate() || new Date(),
+      updatedAt: d.updatedAt?.toDate() || new Date(),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const { getEventById } = useEventStore();
+  const navigating = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -36,16 +68,34 @@ export default function NotificationsScreen() {
     };
   }, []);
 
-  const handlePress = (n: AppNotification) => {
+  const handlePress = async (n: AppNotification) => {
+    if (navigating.current) return;
+    navigating.current = true;
     markRead(n.id);
-    if (n.type === 'friend_request') {
-      navigation.navigate('Friends');
-    } else if (n.eventId && n.eventOwnerId) {
-      navigation.navigate('Comments', {
-        eventId: n.eventId,
-        eventTitle: n.eventTitle,
-        eventOwnerId: n.eventOwnerId,
-      });
+
+    try {
+      if (n.type === 'friend_request') {
+        navigation.navigate('Friends');
+        return;
+      }
+
+      if (n.type === 'comment_reply' && n.eventId && n.eventOwnerId) {
+        navigation.navigate('Comments', {
+          eventId: n.eventId,
+          eventTitle: n.eventTitle,
+          eventOwnerId: n.eventOwnerId,
+        });
+        return;
+      }
+
+      if (n.eventId) {
+        const event = getEventById(n.eventId) ?? await fetchEvent(n.eventId);
+        if (event) {
+          navigation.navigate('EventDetail', { event });
+        }
+      }
+    } finally {
+      navigating.current = false;
     }
   };
 

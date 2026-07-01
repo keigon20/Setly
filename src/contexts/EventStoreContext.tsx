@@ -279,7 +279,11 @@ export function EventStoreProvider({ children }: EventStoreProviderProps) {
       totalMoneySpent: yearEvents.reduce((sum, e) => sum + e.cost, 0),
       uniqueArtists: new Set(yearEvents.flatMap(e => e.artists)).size,
       uniqueVenues: new Set(yearEvents.map(e => e.venue)).size,
-      favoriteArtist: undefined, // Simplified for now
+      favoriteArtist: (() => {
+        const counts: Record<string, number> = {};
+        yearEvents.flatMap(e => e.artists).forEach(a => { counts[a] = (counts[a] || 0) + 1; });
+        return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+      })(),
       averageCost: yearEvents.length > 0 
         ? yearEvents.reduce((sum, e) => sum + e.cost, 0) / yearEvents.length 
         : 0,
