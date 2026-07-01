@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Alert } from 'react-native';
 import {
   User,
   createUserWithEmailAndPassword,
@@ -86,14 +86,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const tokenResult = await firebaseUser.getIdTokenResult(true);
           console.log('[Auth] forced token refresh, expiration:', tokenResult.expirationTime);
 
-          const [userDoc, adminDoc] = await Promise.all([
+          const [userDoc, adminConfigDoc, bannedEmailsDoc] = await Promise.all([
             getDoc(doc(db, 'users', firebaseUser.uid)),
-            getDoc(doc(db, 'admins', firebaseUser.uid)),
+            getDoc(doc(db, 'config', 'admins')),
+            getDoc(doc(db, 'config', 'bannedEmails')),
           ]);
-          setIsAdmin(adminDoc.exists());
+
+          // Check email ban before anything else
+          const bannedEmails: string[] = bannedEmailsDoc.exists() ? (bannedEmailsDoc.data().emails ?? []) : [];
+          if (bannedEmails.includes(firebaseUser.email ?? '')) {
+            await signOut(auth);
+            Alert.alert('Account Banned', 'This email address has been permanently banned from Setly. Contact setlyhelp@outlook.com to appeal.');
+            return;
+          }
+
+          const adminUids: string[] = adminConfigDoc.exists() ? (adminConfigDoc.data().uids ?? []) : [];
+          setIsAdmin(adminUids.includes(firebaseUser.uid));
 
           if (userDoc.exists()) {
             const userData = userDoc.data();
+
+            // Check suspension
+            const suspendedUntil: Date | undefined = userData.suspendedUntil?.toDate();
+            if (suspendedUntil && suspendedUntil > new Date()) {
+              const daysLeft = Math.ceil((suspendedUntil.getTime() - Date.now()) / 86400000);
+              await signOut(auth);
+              Alert.alert(
+                'Account Suspended',
+                `Your account is suspended for ${daysLeft} more day${daysLeft !== 1 ? 's' : ''}. Contact setlyhelp@outlook.com to appeal.`,
+              );
+              return;
+            }
             const resolvedUser = {
               id: firebaseUser.uid,
               email: firebaseUser.email || '',

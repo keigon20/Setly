@@ -7,7 +7,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return get(/databases/$(database)/documents/config/admins).data.uids.hasAny([request.auth.uid]);
     }
 
     function isFriendOf(otherUserId) {
@@ -30,13 +30,20 @@ service cloud.firestore {
 
     // User profiles - any signed-in user can look others up (needed for email search,
     // friend names, and feed attribution). Only the owner can write their own profile.
+    // Admins can update (e.g. setting suspendedUntil) but not create or delete.
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if request.auth.uid == userId;
+      allow create, delete: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId || isAdmin();
 
       match /friends/{friendId} {
         allow read: if request.auth.uid == userId;
-        allow create, update, delete: if request.auth.uid == userId || request.auth.uid == friendId;
+        // friendId can create only when userId sent them a friend request (prevents injection).
+        // friendId can update their own display name entry and delete (unfriend from their side).
+        allow create: if request.auth.uid == userId
+          || (request.auth.uid == friendId
+              && exists(/databases/$(database)/documents/friendRequests/$(userId + '_' + friendId)));
+        allow update, delete: if request.auth.uid == userId || request.auth.uid == friendId;
       }
 
       match /blockedUsers/{blockedId} {
@@ -53,12 +60,14 @@ service cloud.firestore {
       allow delete: if isSignedIn() && (request.auth.uid == resource.data.fromUserId || request.auth.uid == resource.data.toUserId);
     }
 
-    // Events - owner has full access; friends can read only if not hidden.
+    // Events - owner has full access; friends can read only if not hidden; admins can read any.
     match /events/{eventId} {
       allow read: if request.auth.uid == resource.data.userId
-        || (resource.data.isHidden == false && isFriendOf(resource.data.userId));
+        || (resource.data.isHidden == false && isFriendOf(resource.data.userId))
+        || isAdmin();
       allow create: if request.resource.data.userId == request.auth.uid;
-      allow update, delete: if request.auth.uid == resource.data.userId;
+      allow update: if request.auth.uid == resource.data.userId || isAdmin();
+      allow delete: if request.auth.uid == resource.data.userId;
 
       match /likes/{likerId} {
         allow read: if request.auth.uid == likerId || isOwnerOrFriendOfEvent(eventId);
@@ -85,25 +94,25 @@ service cloud.firestore {
       }
     }
 
-    // Notifications - owner can read and mark as read; any signed-in user can create
-    // (writes happen client-side when a friend action occurs).
+    // Notifications - owner can read and mark as read; signed-in users can create
+    // but must identify themselves as the sender (prevents impersonation).
     match /notifications/{userId}/items/{itemId} {
       allow read, update, delete: if request.auth.uid == userId;
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.fromUserId == request.auth.uid;
     }
 
-    // Admins - documents are created manually via Firebase console only.
-    // Clients can read their own doc to confirm admin status; writes are blocked.
-    match /admins/{userId} {
-      allow read: if request.auth.uid == userId;
-      allow write: if false;
+    // Config - read-only for signed-in users; admins can write (banned emails management).
+    // config/admins holds { uids: ['uid1', ...] }; config/bannedEmails holds { emails: [...] }.
+    match /config/{document} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
-    // Reports - anyone can file one; only admins can read them.
+    // Reports - anyone can file one; only admins can read or update (change status).
     match /reports/{reportId} {
       allow create: if request.resource.data.reporterId == request.auth.uid;
-      allow read: if isAdmin();
-      allow update, delete: if false;
+      allow read, update: if isAdmin();
+      allow delete: if false;
     }
 
     // Bug reports - anyone can file one; only admins can read them.

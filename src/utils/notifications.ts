@@ -13,6 +13,7 @@ export interface NotificationPayload {
   eventId?: string;
   eventTitle?: string;
   eventOwnerId?: string;
+  message?: string;
 }
 
 export async function writeNotification(toUserId: string, payload: NotificationPayload): Promise<void> {

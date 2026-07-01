@@ -5,6 +5,14 @@ import { initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { APP_VARIANT } from '../config/env';
+import { initializeAppCheck, CustomProvider } from 'firebase/app-check';
+import {
+  ReactNativeFirebaseAppCheckProvider,
+  initializeAppCheck as rnfbInitAppCheck,
+  getToken as rnfbGetToken,
+} from '@react-native-firebase/app-check';
+import { getApp as getRnfbApp } from '@react-native-firebase/app';
+
 
 // Firebase configuration - from Firebase Console
 // TODO: staging currently points at the same project as production. Once a
@@ -33,8 +41,41 @@ const firebaseConfigs = {
 const firebaseConfig = firebaseConfigs[APP_VARIANT];
 
 // Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const isFirstInit = !getApps().length;
+const app = isFirstInit ? initializeApp(firebaseConfig) : getApp();
 
+if (isFirstInit) {
+  // ReactNativeFirebaseAppCheckProvider.getToken() is not callable from JS —
+  // the native module handles token retrieval. The correct bridge is to use
+  // RNFB's own initializeAppCheck + modular getToken, then forward to the JS SDK.
+  (async () => {
+    const provider = new ReactNativeFirebaseAppCheckProvider();
+    // In debug builds: use 'debug' provider. If EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN
+    // is set, RNFB uses it; otherwise it logs a token to logcat on first run —
+    // copy it into Firebase console → App Check → debug tokens, then add to .env.
+    provider.configure({
+      android: {
+        provider: __DEV__ ? 'debug' : 'playIntegrity',
+        debugToken: process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN,
+      },
+    });
+
+    const rnfbInstance = await rnfbInitAppCheck(getRnfbApp(), {
+      provider,
+      isTokenAutoRefreshEnabled: true,
+    });
+
+    initializeAppCheck(app, {
+      provider: new CustomProvider({
+        getToken: async () => {
+          const { token } = await rnfbGetToken(rnfbInstance, false);
+          return { token, expireTimeMillis: Date.now() + 3600000 };
+        },
+      }),
+      isTokenAutoRefreshEnabled: true,
+    });
+  })();
+}
 // Initialize Firebase services with AsyncStorage persistence for React Native
 // Using ts-ignore because the RN-specific types are not exported in the main firebase package
 // @ts-ignore

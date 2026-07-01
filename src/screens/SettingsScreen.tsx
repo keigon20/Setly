@@ -38,6 +38,8 @@ export default function SettingsScreen() {
   const [isSubmittingBug, setIsSubmittingBug] = useState(false);
 
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   const handleOpenEditName = () => {
     setTempName(user?.displayName || '');
@@ -85,25 +87,19 @@ export default function SettingsScreen() {
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'This permanently deletes your account, your event journal, and your friend connections. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete Account',
-          style: 'destructive',
-          onPress: async () => {
-            setIsDeleting(true);
-            const { success, message } = await deleteAccount();
-            setIsDeleting(false);
-            if (!success) {
-              Alert.alert('Error', message || 'Failed to delete account. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+    setDeleteConfirmText('');
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteConfirmText !== 'Delete account') return;
+    setShowDeleteConfirm(false);
+    setIsDeleting(true);
+    const { success, message } = await deleteAccount();
+    setIsDeleting(false);
+    if (!success) {
+      Alert.alert('Error', message || 'Failed to delete account. Please try again.');
+    }
   };
 
   const renderRow = (icon: keyof typeof Ionicons.glyphMap, label: string, onPress: () => void, destructive = false) => (
@@ -193,7 +189,7 @@ export default function SettingsScreen() {
               placeholderTextColor={colors.textTertiary}
               value={bugDescription}
               onChangeText={setBugDescription}
-              placeholder="What went wrong?"
+              placeholder="What went wrong? Explain in detail, and include steps to reproduce the bug if possible."
               multiline
               numberOfLines={4}
             />
@@ -211,6 +207,44 @@ export default function SettingsScreen() {
                 disabled={isSubmittingBug || !bugDescription.trim()}
               >
                 <Text style={styles.saveBtnText}>{isSubmittingBug ? 'Sending...' : 'Submit'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showDeleteConfirm} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Delete Account</Text>
+            <Text style={styles.deleteWarning}>
+              This permanently deletes your account, your event journal, and your friend connections. This cannot be undone.
+            </Text>
+            <Text style={styles.deletePrompt}>Type "Delete account" to confirm</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholderTextColor={colors.textTertiary}
+              value={deleteConfirmText}
+              onChangeText={setDeleteConfirmText}
+              placeholder="Delete account"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelBtn]}
+                onPress={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  deleteConfirmText === 'Delete account' ? styles.deleteConfirmBtn : styles.deleteConfirmBtnDisabled,
+                ]}
+                onPress={handleConfirmDelete}
+                disabled={deleteConfirmText !== 'Delete account' || isDeleting}
+              >
+                <Text style={styles.deleteConfirmBtnText}>{isDeleting ? 'Deleting...' : 'Delete'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -340,5 +374,31 @@ const styles = StyleSheet.create({
   },
   saveBtnText: {
     color: colors.textPrimary,
+  },
+  deleteWarning: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  deletePrompt: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    marginBottom: 6,
+  },
+  deleteConfirmBtn: {
+    backgroundColor: `${colors.destructive}22`,
+    borderWidth: 1,
+    borderColor: colors.destructive,
+  },
+  deleteConfirmBtnDisabled: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    opacity: 0.5,
+  },
+  deleteConfirmBtnText: {
+    color: colors.destructive,
+    fontWeight: '600',
   },
 });

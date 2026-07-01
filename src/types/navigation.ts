@@ -1,4 +1,4 @@
-import { MusicEvent } from './index';
+import { MusicEvent, SerializedMusicEvent } from './index';
 
 export interface EventPrefill {
   title: string;
@@ -12,13 +12,15 @@ export type RootStackParamList = {
   MainTabs: undefined;
   SearchEvent: undefined;
   AddEvent: { eventToEdit?: MusicEvent; prefill?: EventPrefill };
-  EventDetail: { event: MusicEvent };
+  EventDetail: { event: SerializedMusicEvent };
   Friends: undefined;
   Comments: { eventId: string; eventTitle?: string; eventOwnerId: string };
   Notifications: undefined;
   NotificationSettings: undefined;
   Achievements: undefined;
   YearlyRecap: undefined;
+  PastReports: undefined;
+  BannedEmails: undefined;
   Settings: undefined;
   PrivacyPolicy: undefined;
   TermsOfUse: undefined;

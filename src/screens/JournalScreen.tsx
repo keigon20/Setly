@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEventStore } from '../contexts/EventStoreContext';
-import { MusicEvent } from '../types';
+import { MusicEvent, serializeEvent } from '../types';
 import { colors } from '../theme';
 import Logo from '../components/Logo';
 
@@ -66,7 +66,7 @@ export default function JournalScreen({ onEventPress, onAddEvent }: JournalScree
         if (onEventPress) {
           onEventPress(item);
         } else {
-          navigation.navigate('EventDetail', { event: item });
+          navigation.navigate('EventDetail', { event: serializeEvent(item) });
 
         }
       }}

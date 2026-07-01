@@ -25,6 +25,7 @@ module.exports = {
       googleServicesFile: './GoogleService-Info.plist',
     },
     android: {
+      googleServicesFile: './google-services.json',
       package: ANDROID_PACKAGE,
       versionCode: 1,
       adaptiveIcon: {
@@ -47,6 +48,7 @@ module.exports = {
           backgroundColor: '#0B0B0C',
         },
       ],
+      '@react-native-firebase/app',
       'expo-image-picker',
       'expo-notifications',
       'expo-font',
@@ -72,7 +74,6 @@ module.exports = {
           },
         },
       ],
-      'expo-sharing',
     ],
     extra: {
       eas: {

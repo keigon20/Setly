@@ -10,7 +10,7 @@ import {
   Alert
 } from 'react-native';
 import { useEventStore } from '../contexts/EventStoreContext';
-import { MusicEvent } from '../types';
+import { MusicEvent, deserializeEvent } from '../types';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
@@ -31,7 +31,8 @@ export default function EventDetailScreen({ event: propEvent, onEdit, onClose }:
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
   const insets = useSafeAreaInsets();
-  const event = propEvent || (route.params as any)?.event;
+  const rawParam = (route.params as any)?.event;
+  const event = propEvent || (rawParam ? deserializeEvent(rawParam) : undefined);
   const { deleteEvent } = useEventStore();
   const { likes, comments, addComment, deleteComment } = useEventSocial(event?.id || '');
   const [commentText, setCommentText] = useState('');

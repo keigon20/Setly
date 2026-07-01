@@ -7,7 +7,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import { useNotifications } from '../contexts/NotificationsContext';
 import { useEventStore } from '../contexts/EventStoreContext';
-import { AppNotification, MusicEvent } from '../types';
+import { AppNotification, MusicEvent, serializeEvent } from '../types';
 import { colors } from '../theme';
 import type { RootStackParamList } from '../types/navigation';
 
@@ -25,6 +25,10 @@ function notificationBody(n: AppNotification): string {
       return `${n.fromDisplayName} commented on your event${n.eventTitle ? ` "${n.eventTitle}"` : ''}`;
     case 'comment_reply':
       return `${n.fromDisplayName} replied to your comment${n.eventTitle ? ` on "${n.eventTitle}"` : ''}`;
+    case 'content_under_review':
+    case 'report_outcome':
+    case 'new_report':
+      return n.message ?? 'You have a moderation update.';
   }
 }
 
@@ -91,7 +95,7 @@ export default function NotificationsScreen() {
       if (n.eventId) {
         const event = getEventById(n.eventId) ?? await fetchEvent(n.eventId);
         if (event) {
-          navigation.navigate('EventDetail', { event });
+          navigation.navigate('EventDetail', { event: serializeEvent(event) });
         }
       }
     } finally {

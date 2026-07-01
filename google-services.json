@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1077269817537",
+    "firebase_url": "https://livemusictracker-6eeaf-default-rtdb.firebaseio.com",
+    "project_id": "livemusictracker-6eeaf",
+    "storage_bucket": "livemusictracker-6eeaf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1077269817537:android:d64b18670484900285cc40",
+        "android_client_info": {
+          "package_name": "com.setly.app.staging"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1077269817537-og56f8jtikapoj531kafcf431sc5u7in.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDryqc5QJsQqbxixFXM6Tw6A0d0N7Vb01Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1077269817537-og56f8jtikapoj531kafcf431sc5u7in.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1077269817537-damnhuejgdfseol4lmd614usuk5qpr3k.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.anonymous.LiveMusicTracker"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,3 +1,19 @@
+// Serialized form used when passing a MusicEvent through React Navigation params.
+// Date fields become ISO strings so the state is JSON-serializable.
+export type SerializedMusicEvent = Omit<MusicEvent, 'date' | 'createdAt' | 'updatedAt'> & {
+  date: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function serializeEvent(e: MusicEvent): SerializedMusicEvent {
+  return { ...e, date: e.date.toISOString(), createdAt: e.createdAt.toISOString(), updatedAt: e.updatedAt.toISOString() };
+}
+
+export function deserializeEvent(e: SerializedMusicEvent): MusicEvent {
+  return { ...e, date: new Date(e.date), createdAt: new Date(e.createdAt), updatedAt: new Date(e.updatedAt) };
+}
+
 // Music Event type definition
 export interface MusicEvent {
   id: string;
@@ -102,7 +118,10 @@ export type AppNotificationType =
   | 'friend_post'
   | 'event_like'
   | 'event_comment'
-  | 'comment_reply';
+  | 'comment_reply'
+  | 'content_under_review'
+  | 'report_outcome'
+  | 'new_report';
 
 export interface NotificationPrefs {
   all: boolean;
@@ -132,6 +151,7 @@ export interface AppNotification {
   eventId?: string;
   eventTitle?: string;
   eventOwnerId?: string;
+  message?: string;
   read: boolean;
   createdAt: Date;
 }

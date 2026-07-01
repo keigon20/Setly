@@ -15,8 +15,9 @@ import { AppNotification, AppNotificationType, NotificationPrefs, DEFAULT_NOTIFI
 
 const PREFS_KEY = 'notif_prefs';
 
-// Map notification type to the pref key that gates it
-const TYPE_TO_PREF: Record<AppNotificationType, keyof NotificationPrefs> = {
+// Map notification type to the pref key that gates it.
+// Moderation types (content_under_review, report_outcome) are omitted — they always show.
+const TYPE_TO_PREF: Partial<Record<AppNotificationType, keyof NotificationPrefs>> = {
   friend_request: 'friendRequest',
   friend_post: 'friendPost',
   event_like: 'eventLike',
@@ -83,6 +84,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           eventId: d.data().eventId,
           eventTitle: d.data().eventTitle,
           eventOwnerId: d.data().eventOwnerId,
+          message: d.data().message,
           read: d.data().read ?? false,
           createdAt: d.data().createdAt?.toDate() || new Date(),
         })));

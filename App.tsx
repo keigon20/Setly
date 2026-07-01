@@ -27,9 +27,11 @@ import NotificationSettingsScreen from './src/screens/NotificationSettingsScreen
 import AchievementsScreen from './src/screens/AchievementsScreen';
 import YearlyRecapScreen from './src/screens/YearlyRecapScreen';
 import AdminScreen from './src/screens/AdminScreen';
+import PastReportsScreen from './src/screens/PastReportsScreen';
+import BannedEmailsScreen from './src/screens/BannedEmailsScreen';
 import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import TermsOfUseScreen from './src/screens/TermsOfUseScreen';
-import { MusicEvent } from './src/types';
+import { MusicEvent, serializeEvent } from './src/types';
 import { colors } from './src/theme';
 
 // Show notifications as alerts when the app is foregrounded
@@ -76,7 +78,7 @@ function MainTabs({ navigation, onSignIn }: { navigation: any; onSignIn: () => v
       >
         {() => (
           <JournalScreen
-            onEventPress={(event: MusicEvent) => navigation.navigate('EventDetail', { event })}
+            onEventPress={(event: MusicEvent) => navigation.navigate('EventDetail', { event: serializeEvent(event) })}
             onAddEvent={() => navigation.navigate('SearchEvent')}
           />
         )}
@@ -144,6 +146,8 @@ function AppContent() {
       <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
       <Stack.Screen name="Achievements" component={AchievementsScreen} />
       <Stack.Screen name="YearlyRecap" component={YearlyRecapScreen} />
+      <Stack.Screen name="PastReports" component={PastReportsScreen} />
+      <Stack.Screen name="BannedEmails" component={BannedEmailsScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <Stack.Screen name="TermsOfUse" component={TermsOfUseScreen} />
     </Stack.Navigator>
