@@ -4,6 +4,26 @@ const API_KEY = process.env.EXPO_PUBLIC_TICKETMASTER_API_KEY;
 const BASE_URL = 'https://app.ticketmaster.com/discovery/v2/events.json';
 const VENUES_URL = 'https://app.ticketmaster.com/discovery/v2/venues.json';
 
+// React Native New Architecture's fetch has issues with certain external domains.
+// XHR uses the native networking stack and is reliable across all RN versions.
+function xhrGet(url: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', url);
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText));
+      } else {
+        reject(new Error(`Request failed: ${xhr.status}`));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network request failed'));
+    xhr.ontimeout = () => reject(new Error('Request timed out'));
+    xhr.timeout = 10000;
+    xhr.send();
+  });
+}
+
 export interface TicketmasterEventResult {
   id: string;
   prefill: EventPrefill;
@@ -42,13 +62,7 @@ export async function searchTicketmasterVenues(query: string): Promise<Ticketmas
   }
 
   const url = `${VENUES_URL}?apikey=${API_KEY}&keyword=${encodeURIComponent(query)}&size=2`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Ticketmaster request failed with status ${response.status}`);
-  }
-
-  const data = await response.json();
+  const data = await xhrGet(url);
   const venues = data._embedded?.venues || [];
   return venues.map((v: any) => ({
     id: v.id,
@@ -64,13 +78,7 @@ export async function searchTicketmasterEvents(query: string): Promise<Ticketmas
   }
 
   const url = `${BASE_URL}?apikey=${API_KEY}&keyword=${encodeURIComponent(query)}&size=20`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Ticketmaster request failed with status ${response.status}`);
-  }
-
-  const data = await response.json();
+  const data = await xhrGet(url);
   const events = data._embedded?.events || [];
   return events.map(mapEvent);
 }

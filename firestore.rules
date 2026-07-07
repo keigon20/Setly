@@ -96,9 +96,10 @@ service cloud.firestore {
 
     // Notifications - owner can read and mark as read; signed-in users can create
     // but must identify themselves as the sender (prevents impersonation).
+    // Admins can create system notifications (fromUserId: 'system') on behalf of Setly.
     match /notifications/{userId}/items/{itemId} {
       allow read, update, delete: if request.auth.uid == userId;
-      allow create: if isSignedIn() && request.resource.data.fromUserId == request.auth.uid;
+      allow create: if isSignedIn() && (request.resource.data.fromUserId == request.auth.uid || isAdmin());
     }
 
     // Config - read-only for signed-in users; admins can write (banned emails management).
@@ -120,6 +121,36 @@ service cloud.firestore {
       allow create: if request.resource.data.userId == request.auth.uid;
       allow read: if isAdmin();
       allow update, delete: if false;
+    }
+
+    // Giveaways - any signed-in user can read; only admins can create/update/delete.
+    // Each user can record their own entry in the entries subcollection.
+    match /giveaways/{giveawayId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+
+      match /entries/{userId} {
+        allow read: if isSignedIn();
+        allow create: if request.auth.uid == userId;
+        allow delete: if request.auth.uid == userId || isAdmin();
+      }
+    }
+
+    // Account-deletion collectionGroup rules — allow a user to query and delete
+    // their own scattered content (comments/replies/likes on others' events,
+    // giveaway entries) without get() lookups that would fail in collectionGroup
+    // context. Access is limited to documents where userId == the caller.
+    match /{path=**}/comments/{commentId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+    match /{path=**}/replies/{replyId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+    match /{path=**}/likes/{likeId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+    match /{path=**}/entries/{entryId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
   }
 }

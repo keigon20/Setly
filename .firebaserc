@@ -1,5 +1,17 @@
 {
   "projects": {
-    "default": "livemusictracker-6eeaf"
-  }
+    "default": "livemusictracker-6eeaf",
+    "staging": "livemusictracker-6eeaf",
+    "production": "setly-59268"
+  },
+  "targets": {
+    "setly-59268": {
+      "hosting": {
+        "webapp": [
+          "setlyapp"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

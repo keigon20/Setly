@@ -1,3 +1,5 @@
+const { withProjectBuildGradle } = require('@expo/config-plugins');
+
 const APP_VARIANT = process.env.EXPO_PUBLIC_APP_VARIANT === 'staging' ? 'staging' : 'production';
 const isStaging = APP_VARIANT === 'staging';
 
@@ -8,6 +10,27 @@ const isStaging = APP_VARIANT === 'staging';
 // and staging (already registered in Firebase for Google Sign-In) stays put.
 const ANDROID_PACKAGE = isStaging ? 'com.setly.app.staging' : 'com.setlyapp.android';
 const IOS_BUNDLE_ID = isStaging ? 'com.setly.app.staging' : 'com.setly.app';
+
+// play-services-ads 25.x ships Kotlin 2.3.0 metadata; the EAS Kotlin 2.1.x
+// compiler rejects it. The compiler version is controlled internally by
+// expo-root-project and cannot be overridden via config. Instead, tell the
+// compiler to skip the metadata version check so it can link the JARs anyway.
+const withKotlinMetadataSkip = (config) => {
+  return withProjectBuildGradle(config, (mod) => {
+    if (mod.modResults.contents.includes('Xskip-metadata-version-check')) return mod;
+    mod.modResults.contents += `
+// play-services-ads 25.x metadata-version workaround
+allprojects {
+  tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+      freeCompilerArgs += ["-Xskip-metadata-version-check"]
+    }
+  }
+}
+`;
+    return mod;
+  });
+};
 
 module.exports = {
   expo: {
@@ -22,17 +45,19 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: IOS_BUNDLE_ID,
-      googleServicesFile: './GoogleService-Info.plist',
+      googleServicesFile: isStaging
+        ? './GoogleService-Info.plist'
+        : './GoogleService-Info.production.plist',
     },
     android: {
-      googleServicesFile: './google-services.json',
+      googleServicesFile: isStaging
+        ? './google-services.json'
+        : './google-services.production.json',
       package: ANDROID_PACKAGE,
-      versionCode: 1,
+      versionCode: 5,
       adaptiveIcon: {
-        backgroundColor: '#E6F4FE',
         foregroundImage: './assets/android-icon-foreground.png',
-        backgroundImage: './assets/android-icon-background.png',
-        monochromeImage: './assets/android-icon-monochrome.png',
+        backgroundColor: '#F5EEE6',
       },
       predictiveBackGestureEnabled: false,
     },
@@ -40,6 +65,7 @@ module.exports = {
       favicon: './assets/favicon.png',
     },
     plugins: [
+      withKotlinMetadataSkip,
       [
         'expo-splash-screen',
         {

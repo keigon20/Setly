@@ -29,6 +29,8 @@ function notificationBody(n: AppNotification): string {
     case 'report_outcome':
     case 'new_report':
       return n.message ?? 'You have a moderation update.';
+    case 'giveaway_winner':
+      return n.message ?? 'You won a giveaway!';
   }
 }
 
@@ -79,7 +81,7 @@ export default function NotificationsScreen() {
 
     try {
       if (n.type === 'friend_request') {
-        navigation.navigate('Friends');
+        navigation.navigate('ManageFriends');
         return;
       }
 

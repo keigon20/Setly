@@ -1,5 +1,6 @@
 import {
   collection,
+  collectionGroup,
   deleteDoc,
   doc,
   getDocs,
@@ -17,61 +18,77 @@ async function deleteSubcollection(first: string, ...rest: string[]): Promise<vo
   await deleteAllDocs(snap.docs);
 }
 
-// Deletes everything a user owns, ahead of removing their auth account: their
-// own events (and those events' comments/replies/likes subcollections), then
-// their social graph, then their profile doc.
+// Deletes everything associated with a user ahead of removing their auth account:
 //
-// Known limitation: comments/replies/likes this user left on OTHER people's
-// events are not cleaned up here. Firestore can't safely evaluate a
-// collectionGroup query's security rule when it depends on a get() lookup
-// keyed off a per-document path variable (eventId varies across every match),
-// so that scan gets denied outright regardless of which documents would
-// actually satisfy the rule. Doing this properly would need either a
-// denormalized "my content" index under users/{userId}, or moving deletion
-// server-side via a Cloud Function with the Admin SDK.
+// 1. Own events (and those events' comments/replies/likes subcollections).
+// 2. Comments, replies, and likes this user left on OTHER people's events —
+//    done via collectionGroup queries that only touch docs where userId matches
+//    (no get() lookups needed, so the client-side security rules pass).
+//    Note: subcollections under deleted comments (e.g. other users' replies to
+//    the deleted comment) are left in place; they're third-party data and are
+//    orphaned rather than deleted.
+// 3. Giveaway entries.
+// 4. Friend graph (both sides) and pending friend requests.
+// 5. User's own notification inbox.
+// 6. The user profile doc itself.
 export async function deleteAllUserData(userId: string): Promise<void> {
+  // ── 1. Own events ────────────────────────────────────────────────────────
   console.log('[deleteAllUserData] step: query own events');
   const ownEvents = await getDocs(query(collection(db, 'events'), where('userId', '==', userId)));
   console.log('[deleteAllUserData] step: own events count', ownEvents.docs.length);
   for (const eventDoc of ownEvents.docs) {
     const eventId = eventDoc.id;
-    console.log('[deleteAllUserData] step: query comments for event', eventId);
     const commentsSnap = await getDocs(collection(db, 'events', eventId, 'comments'));
     for (const commentDoc of commentsSnap.docs) {
-      console.log('[deleteAllUserData] step: delete replies for comment', eventId, commentDoc.id);
       await deleteSubcollection('events', eventId, 'comments', commentDoc.id, 'replies');
-      console.log('[deleteAllUserData] step: delete likes for comment', eventId, commentDoc.id);
       await deleteSubcollection('events', eventId, 'comments', commentDoc.id, 'likes');
-      console.log('[deleteAllUserData] step: delete comment doc', eventId, commentDoc.id);
       await deleteDoc(commentDoc.ref);
     }
-    console.log('[deleteAllUserData] step: delete event likes', eventId);
     await deleteSubcollection('events', eventId, 'likes');
-    console.log('[deleteAllUserData] step: delete event doc', eventId);
     await deleteDoc(eventDoc.ref);
   }
 
-  console.log('[deleteAllUserData] step: query own friends');
+  // ── 2. Scattered content on others' events ────────────────────────────────
+  // Own events are already gone above, so these queries only return content
+  // the user left on other people's events.
+  console.log('[deleteAllUserData] step: scattered comments/replies/likes/entries');
+  const [scatteredComments, scatteredReplies, scatteredLikes, giveawayEntries] = await Promise.all([
+    getDocs(query(collectionGroup(db, 'comments'), where('userId', '==', userId))),
+    getDocs(query(collectionGroup(db, 'replies'), where('userId', '==', userId))),
+    getDocs(query(collectionGroup(db, 'likes'), where('userId', '==', userId))),
+    getDocs(query(collectionGroup(db, 'entries'), where('userId', '==', userId))),
+  ]);
+  await deleteAllDocs([
+    ...scatteredComments.docs,
+    ...scatteredReplies.docs,
+    ...scatteredLikes.docs,
+    ...giveawayEntries.docs,
+  ]);
+
+  // ── 3. Friend graph ───────────────────────────────────────────────────────
+  console.log('[deleteAllUserData] step: friend graph');
   const ownFriends = await getDocs(collection(db, 'users', userId, 'friends'));
   for (const friendDoc of ownFriends.docs) {
-    console.log('[deleteAllUserData] step: remove reciprocal friend doc', friendDoc.id);
     await deleteDoc(doc(db, 'users', friendDoc.id, 'friends', userId)).catch(err => {
       console.log('[deleteAllUserData] reciprocal friend delete failed (continuing):', friendDoc.id, err?.code);
     });
-    console.log('[deleteAllUserData] step: remove own friend doc', friendDoc.id);
     await deleteDoc(friendDoc.ref);
   }
 
-  console.log('[deleteAllUserData] step: query friend requests');
-  const outgoingRequests = await getDocs(query(collection(db, 'friendRequests'), where('fromUserId', '==', userId)));
-  const incomingRequests = await getDocs(query(collection(db, 'friendRequests'), where('toUserId', '==', userId)));
-  console.log('[deleteAllUserData] step: delete friend requests', outgoingRequests.docs.length, incomingRequests.docs.length);
+  const [outgoingRequests, incomingRequests] = await Promise.all([
+    getDocs(query(collection(db, 'friendRequests'), where('fromUserId', '==', userId))),
+    getDocs(query(collection(db, 'friendRequests'), where('toUserId', '==', userId))),
+  ]);
   await deleteAllDocs([...outgoingRequests.docs, ...incomingRequests.docs]);
 
-  console.log('[deleteAllUserData] step: delete blockedUsers');
   await deleteSubcollection('users', userId, 'blockedUsers');
 
-  console.log('[deleteAllUserData] step: delete user profile doc');
+  // ── 4. Notification inbox ─────────────────────────────────────────────────
+  console.log('[deleteAllUserData] step: notifications');
+  await deleteSubcollection('notifications', userId, 'items');
+
+  // ── 5. User profile ───────────────────────────────────────────────────────
+  console.log('[deleteAllUserData] step: user profile');
   await deleteDoc(doc(db, 'users', userId));
 
   console.log('[deleteAllUserData] done');

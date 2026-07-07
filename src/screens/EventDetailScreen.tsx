@@ -76,6 +76,9 @@ export default function EventDetailScreen({ event: propEvent, onEdit, onClose }:
       )}
 
       <View style={styles.content}>
+        {event.festivalName && (
+          <Text style={styles.festivalTag}>{event.festivalName}</Text>
+        )}
         <Text style={styles.title}>{event.title}</Text>
         
         <View style={styles.detailRow}>
@@ -237,6 +240,14 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+  },
+  festivalTag: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
   },
   title: {
     fontSize: 26,

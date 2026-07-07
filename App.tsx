@@ -20,6 +20,8 @@ import SearchEventScreen from './src/screens/SearchEventScreen';
 import AddEventScreen from './src/screens/AddEventScreen';
 import EventDetailScreen from './src/screens/EventDetailScreen';
 import FriendsScreen from './src/screens/FriendsScreen';
+import GiveawaysScreen from './src/screens/GiveawaysScreen';
+import GiveawayEntriesScreen from './src/screens/GiveawayEntriesScreen';
 import CommentsScreen from './src/screens/CommentsScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -31,6 +33,7 @@ import PastReportsScreen from './src/screens/PastReportsScreen';
 import BannedEmailsScreen from './src/screens/BannedEmailsScreen';
 import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import TermsOfUseScreen from './src/screens/TermsOfUseScreen';
+import GroupEditScreen from './src/screens/GroupEditScreen';
 import { MusicEvent, serializeEvent } from './src/types';
 import { colors } from './src/theme';
 
@@ -64,13 +67,6 @@ function MainTabs({ navigation, onSignIn }: { navigation: any; onSignIn: () => v
       }}
     >
       <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color} size={size} />,
-        }}
-      />
-      <Tab.Screen
         name="Journal"
         options={{
           tabBarIcon: ({ color, size }) => <Ionicons name="journal" color={color} size={size} />,
@@ -83,6 +79,20 @@ function MainTabs({ navigation, onSignIn }: { navigation: any; onSignIn: () => v
           />
         )}
       </Tab.Screen>
+      <Tab.Screen
+        name="Friends"
+        component={HomeScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Ionicons name="people" color={color} size={size} />,
+        }}
+      />
+      <Tab.Screen
+        name="Giveaways"
+        component={GiveawaysScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Ionicons name="gift" color={color} size={size} />,
+        }}
+      />
       <Tab.Screen
         name="Profile"
         options={{
@@ -139,7 +149,7 @@ function AppContent() {
       <Stack.Screen name="SearchEvent" component={SearchEventScreen} />
       <Stack.Screen name="AddEvent" component={AddEventScreen} />
       <Stack.Screen name="EventDetail" component={EventDetailScreen} />
-      <Stack.Screen name="Friends" component={FriendsScreen} />
+      <Stack.Screen name="ManageFriends" component={FriendsScreen} />
       <Stack.Screen name="Comments" component={CommentsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
@@ -150,6 +160,8 @@ function AppContent() {
       <Stack.Screen name="BannedEmails" component={BannedEmailsScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <Stack.Screen name="TermsOfUse" component={TermsOfUseScreen} />
+      <Stack.Screen name="GroupEdit" component={GroupEditScreen} />
+      <Stack.Screen name="GiveawayEntries" component={GiveawayEntriesScreen} />
     </Stack.Navigator>
   );
 }

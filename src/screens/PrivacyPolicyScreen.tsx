@@ -14,13 +14,16 @@ export default function PrivacyPolicyScreen() {
       </Text>
 
       <Text style={s.heading}>Information We Collect</Text>
-      <Text style={s.paragraph}>Account information: your email address and display name.</Text>
+      <Text style={s.paragraph}>Account information: your email address, display name, and a unique account identifier (user ID) generated when your account is created.</Text>
       <Text style={s.paragraph}>
         Content you create: concert journal entries (artists, venue, date, cost, notes, ratings),
         photos you upload, comments, replies, and likes.
       </Text>
       <Text style={s.paragraph}>
         Social graph: your friends list, friend requests, and any users you block.
+      </Text>
+      <Text style={s.paragraph}>
+        Search queries: when you search for an artist or venue while adding an event, that query is sent to the Ticketmaster API to return matching results.
       </Text>
       <Text style={s.paragraph}>
         Reports you submit: content reports and bug reports, including the description you

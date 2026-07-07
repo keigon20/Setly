@@ -80,6 +80,9 @@ export default function FeedEventCard({ event, onPressComments }: FeedEventCardP
       )}
 
       <View style={styles.content}>
+        {event.festivalName && (
+          <Text style={styles.festivalTag}>{event.festivalName}</Text>
+        )}
         <Text style={styles.title}>{event.title}</Text>
         <Text style={styles.artists}>{event.artists.join(', ')}</Text>
         <Text style={styles.venue}>{event.venue}</Text>
@@ -142,6 +145,14 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+  },
+  festivalTag: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   title: {
     fontSize: 17,

@@ -9,7 +9,8 @@ import {
   where,
   orderBy,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  deleteField
 } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../utils/firebase';
@@ -27,6 +28,7 @@ interface EventStoreContextType {
   updateEvent: (event: MusicEvent) => Promise<void>;
   deleteEvent: (id: string) => Promise<void>;
   getEventById: (id: string) => MusicEvent | undefined;
+  updateEventGroup: (eventIds: string[], festivalName: string | undefined) => Promise<void>;
   backfillDisplayName: (displayName: string) => Promise<void>;
   totalEvents: number;
   totalMoneySpent: number;
@@ -87,6 +89,7 @@ export function EventStoreProvider({ children }: EventStoreProviderProps) {
             crowdRating: data.crowdRating,
             setlistRating: data.setlistRating,
             isHidden: data.isHidden || false,
+            festivalName: data.festivalName || undefined,
             createdAt: data.createdAt?.toDate() || new Date(),
             updatedAt: data.updatedAt?.toDate() || new Date()
           };
@@ -207,6 +210,22 @@ export function EventStoreProvider({ children }: EventStoreProviderProps) {
     return events.find(e => e.id === id);
   };
 
+  const updateEventGroup = async (eventIds: string[], festivalName: string | undefined) => {
+    setEvents(prev => prev.map(e =>
+      eventIds.includes(e.id) ? { ...e, festivalName } : e
+    ));
+    if (isAuthenticated && user) {
+      const batch = writeBatch(db);
+      for (const id of eventIds) {
+        batch.update(doc(db, EVENTS_COLLECTION, id), {
+          festivalName: festivalName ?? deleteField(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    }
+  };
+
   const backfillDisplayName = async (displayName: string) => {
     if (!isAuthenticated || !user || events.length === 0) return;
 
@@ -250,8 +269,10 @@ export function EventStoreProvider({ children }: EventStoreProviderProps) {
   const averageCost = events.length > 0 ? totalMoneySpent / totalEvents : 0;
   
   const mostRecentEvent = React.useMemo(() => {
-    return events.length > 0 
-      ? events.reduce((latest, event) => event.date > latest.date ? event : latest)
+    const now = new Date();
+    const past = events.filter(e => new Date(e.date) <= now);
+    return past.length > 0
+      ? past.reduce((latest, event) => event.date > latest.date ? event : latest)
       : undefined;
   }, [events]);
   
@@ -303,6 +324,7 @@ export function EventStoreProvider({ children }: EventStoreProviderProps) {
     updateEvent,
     deleteEvent,
     getEventById,
+    updateEventGroup,
     backfillDisplayName,
     totalEvents,
     totalMoneySpent,

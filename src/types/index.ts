@@ -29,6 +29,7 @@ export interface MusicEvent {
   crowdRating?: number; // 1 - 5
   setlistRating?: number; // 1 - 5
   isHidden?: boolean; // hidden from friends' feed
+  festivalName?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -121,7 +122,8 @@ export type AppNotificationType =
   | 'comment_reply'
   | 'content_under_review'
   | 'report_outcome'
-  | 'new_report';
+  | 'new_report'
+  | 'giveaway_winner';
 
 export interface NotificationPrefs {
   all: boolean;
@@ -154,6 +156,19 @@ export interface AppNotification {
   message?: string;
   read: boolean;
   createdAt: Date;
+}
+
+export interface Giveaway {
+  id: string;
+  eventTitle: string;
+  date: Date;
+  location: string;
+  ticketType: string;
+  deadline: Date;
+  terms: string;
+  active: boolean;
+  createdAt: Date;
+  createdBy: string;
 }
 
 // Auth state type

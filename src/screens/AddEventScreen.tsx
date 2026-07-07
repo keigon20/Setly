@@ -87,10 +87,11 @@ export default function AddEventScreen({ onClose, eventToEdit: propEvent }: AddE
   const [crowdRating, setCrowdRating] = useState(eventToEdit?.crowdRating ?? 0);
   const [setlistRating, setSetlistRating] = useState(eventToEdit?.setlistRating ?? 0);
   const [isHidden, setIsHidden] = useState(eventToEdit?.isHidden ?? false);
+  const [festivalName] = useState(eventToEdit?.festivalName || '');
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -140,6 +141,7 @@ export default function AddEventScreen({ onClose, eventToEdit: propEvent }: AddE
         crowdRating: crowdRating || undefined,
         setlistRating: setlistRating || undefined,
         isHidden,
+        festivalName: festivalName.trim() || undefined,
       };
 
       if (eventToEdit) {
@@ -211,7 +213,7 @@ export default function AddEventScreen({ onClose, eventToEdit: propEvent }: AddE
               placeholderTextColor={colors.textTertiary}
               value={title}
               onChangeText={setTitle}
-              placeholder="e.g., Summer Tour 2024"
+              placeholder="e.g., Coachella - Day 1, The Eras Tour - Los Angeles"
             />
           </View>
 
@@ -226,7 +228,7 @@ export default function AddEventScreen({ onClose, eventToEdit: propEvent }: AddE
             />
           </View>
 
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, styles.venueGroup]}>
             <Text style={styles.label}>Venue *</Text>
             <TextInput
               style={styles.input}
@@ -420,6 +422,20 @@ const styles = StyleSheet.create({
   toggleTextGroup: {
     flex: 1,
     marginRight: 12,
+  },
+  venueGroup: {
+    zIndex: 100,
+  },
+  labelOptional: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: colors.textTertiary,
+  },
+  inputHint: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    marginTop: 6,
+    lineHeight: 16,
   },
   toggleSubtext: {
     fontSize: 12,

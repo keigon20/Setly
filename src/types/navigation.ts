@@ -13,7 +13,7 @@ export type RootStackParamList = {
   SearchEvent: undefined;
   AddEvent: { eventToEdit?: MusicEvent; prefill?: EventPrefill };
   EventDetail: { event: SerializedMusicEvent };
-  Friends: undefined;
+  ManageFriends: undefined;
   Comments: { eventId: string; eventTitle?: string; eventOwnerId: string };
   Notifications: undefined;
   NotificationSettings: undefined;
@@ -24,4 +24,6 @@ export type RootStackParamList = {
   Settings: undefined;
   PrivacyPolicy: undefined;
   TermsOfUse: undefined;
+  GroupEdit: { groupKey: string };
+  GiveawayEntries: { giveawayId: string; giveawayTitle: string };
 };

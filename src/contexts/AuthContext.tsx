@@ -24,7 +24,7 @@ import { deleteAllUserData } from '../utils/deleteAccount';
 // OAuth client for the staging package name (com.setly.app.staging) and use
 // its web client ID here instead of reusing the production one.
 const GOOGLE_WEB_CLIENT_IDS = {
-  production: '1077269817537-og56f8jtikapoj531kafcf431sc5u7in.apps.googleusercontent.com',
+  production: '447661547607-nep7cprrb0a2rg353dglb9kt1rt7rod3.apps.googleusercontent.com',
   staging: '1077269817537-og56f8jtikapoj531kafcf431sc5u7in.apps.googleusercontent.com',
 };
 

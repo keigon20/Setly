@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "447661547607",
+    "project_id": "setly-59268",
+    "storage_bucket": "setly-59268.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:447661547607:android:ae54809841d8a9af9a8312",
+        "android_client_info": {
+          "package_name": "com.setlyapp.android"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "447661547607-ttjqqlbmf9fdhaf72v4693u3halnckke.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.setlyapp.android",
+            "certificate_hash": "506043e577f310a25f891f13f34bd4cf0c395441"
+          }
+        },
+        {
+          "client_id": "447661547607-nep7cprrb0a2rg353dglb9kt1rt7rod3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBjBLQjJGfcxSYXiN9NsM7DQWtT-yh_OuM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "447661547607-nep7cprrb0a2rg353dglb9kt1rt7rod3.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "447661547607-42v5cgqhv7gha3p4nhr7g7jus0g6ncjf.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.setly.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

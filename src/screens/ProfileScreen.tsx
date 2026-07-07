@@ -170,7 +170,7 @@ export default function ProfileScreen({ onSignIn }: ProfileScreenProps) {
 
       {isAuthenticated && (
         <View style={styles.section}>
-          <TouchableOpacity style={styles.friendsRow} onPress={() => navigation.navigate('Friends')}>
+          <TouchableOpacity style={styles.friendsRow} onPress={() => navigation.navigate('ManageFriends')}>
             <Text style={styles.friendsRowText}>Friends</Text>
             <Text style={styles.friendsRowValue}>
               {friends.length}{incomingRequests.length > 0 ? ` · ${incomingRequests.length} pending` : ''}
