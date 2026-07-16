@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert
 } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useAuth } from '../contexts/AuthContext';
 import { colors } from '../theme';
 import Logo from '../components/Logo';
@@ -24,12 +25,11 @@ interface AuthScreenProps {
 }
 
 export default function AuthScreen({ onAuthSuccess, onContinueAsGuest }: AuthScreenProps) {
-  const { login, signUp, signInWithGoogle, resetPassword, isLoading, error, clearError } = useAuth();
+  const { login, signUp, signInWithGoogle, signInWithApple, isAppleSignInAvailable, resetPassword, isLoading, error, clearError } = useAuth();
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
 
@@ -52,7 +52,7 @@ export default function AuthScreen({ onAuthSuccess, onContinueAsGuest }: AuthScr
     if (isLoginMode) {
       success = await login(email, password);
     } else {
-      success = await signUp(email, password, displayName);
+      success = await signUp(email, password, '');
     }
 
     if (success) {
@@ -82,11 +82,18 @@ export default function AuthScreen({ onAuthSuccess, onContinueAsGuest }: AuthScr
     }
   };
 
+  const handleAppleSignIn = async () => {
+    clearError();
+    const success = await signInWithApple();
+    if (success) {
+      onAuthSuccess();
+    }
+  };
+
   const isFormValid = () => {
     if (!email || !password) return false;
     if (!isEmailValid) return false;
     if (!isLoginMode) {
-      if (!displayName.trim()) return false;
       if (!isPasswordLongEnough) return false;
       if (!doPasswordsMatch) return false;
     }
@@ -107,20 +114,6 @@ export default function AuthScreen({ onAuthSuccess, onContinueAsGuest }: AuthScr
         </View>
 
         <View style={styles.form}>
-          {!isLoginMode && (
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Display Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholderTextColor={colors.textTertiary}
-                value={displayName}
-                onChangeText={setDisplayName}
-                placeholder="Your name"
-                autoCapitalize="words"
-              />
-            </View>
-          )}
-
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -206,6 +199,16 @@ export default function AuthScreen({ onAuthSuccess, onContinueAsGuest }: AuthScr
           >
             <Text style={styles.googleButtonText}>Sign in with Google</Text>
           </TouchableOpacity>
+
+          {isAppleSignInAvailable && (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+              cornerRadius={12}
+              style={styles.appleButton}
+              onPress={handleAppleSignIn}
+            />
+          )}
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
@@ -361,6 +364,10 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '500',
+  },
+  appleButton: {
+    height: 48,
+    marginTop: 12,
   },
   divider: {
     flexDirection: 'row',

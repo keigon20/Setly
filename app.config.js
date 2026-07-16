@@ -48,13 +48,16 @@ module.exports = {
       googleServicesFile: isStaging
         ? './GoogleService-Info.plist'
         : './GoogleService-Info.production.plist',
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
+      },
     },
     android: {
       googleServicesFile: isStaging
         ? './google-services.json'
         : './google-services.production.json',
       package: ANDROID_PACKAGE,
-      versionCode: 5,
+      versionCode: 11,
       adaptiveIcon: {
         foregroundImage: './assets/android-icon-foreground.png',
         backgroundColor: '#F5EEE6',
@@ -66,6 +69,9 @@ module.exports = {
     },
     plugins: [
       withKotlinMetadataSkip,
+      '@react-native-community/datetimepicker',
+      'expo-sharing',
+      'expo-web-browser',
       [
         'expo-splash-screen',
         {
@@ -75,6 +81,7 @@ module.exports = {
         },
       ],
       '@react-native-firebase/app',
+      'expo-apple-authentication',
       'expo-image-picker',
       'expo-notifications',
       'expo-font',
@@ -96,6 +103,12 @@ module.exports = {
             extraPods: [
               { name: 'GoogleUtilities', modular_headers: true },
               { name: 'RecaptchaInterop', modular_headers: true },
+              // FirebaseAppCheck 12.15.0's FIRRecaptchaProvider.m calls into
+              // AppCheckCore's GACRecaptchaProvider by name. Newer AppCheckCore
+              // releases have broken that symbol, so pin to the version known
+              // to still work until react-native-firebase bumps its Firebase
+              // SDK pin past 12.15.0.
+              { name: 'AppCheckCore', version: '11.3.0' },
             ],
           },
         },

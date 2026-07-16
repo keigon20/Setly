@@ -10,6 +10,14 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/config/admins).data.uids.hasAny([request.auth.uid]);
     }
 
+    // Single read of the caller's own profile, used to gate giveaway entry
+    // creation on both residency and age (18+) at once.
+    function isEligibleForGiveaways() {
+      let profile = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let eighteenYearsAgo = timestamp.date(request.time.year() - 18, request.time.month(), request.time.day());
+      return profile.country == 'US' && profile.birthday <= eighteenYearsAgo;
+    }
+
     function isFriendOf(otherUserId) {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid)/friends/$(otherUserId));
     }
@@ -131,7 +139,9 @@ service cloud.firestore {
 
       match /entries/{userId} {
         allow read: if isSignedIn();
-        allow create: if request.auth.uid == userId;
+        // Admins can also add entries on a user's behalf (e.g. entries that
+        // came in over email), using a synthetic doc ID rather than a real uid.
+        allow create: if (request.auth.uid == userId && isEligibleForGiveaways()) || isAdmin();
         allow delete: if request.auth.uid == userId || isAdmin();
       }
     }

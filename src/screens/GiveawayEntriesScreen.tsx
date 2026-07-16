@@ -8,13 +8,18 @@ import {
   TouchableOpacity,
   Modal,
   Alert,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {
   collection,
   getDocs,
   doc,
   getDoc,
+  setDoc,
   updateDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -31,6 +36,7 @@ interface Entry {
   displayName: string;
   email: string;
   enteredAt: Date;
+  isManual: boolean;
 }
 
 interface WinnerInfo {
@@ -38,7 +44,10 @@ interface WinnerInfo {
   displayName: string;
   email: string;
   notified: boolean;
+  isManual: boolean;
 }
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function GiveawayEntriesScreen() {
   const insets = useSafeAreaInsets();
@@ -52,6 +61,11 @@ export default function GiveawayEntriesScreen() {
   const [pendingWinner, setPendingWinner] = useState<Entry | null>(null);
   const [savingWinner, setSavingWinner] = useState(false);
   const [sendingNotif, setSendingNotif] = useState(false);
+
+  const [showAddEntry, setShowAddEntry] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualEmail, setManualEmail] = useState('');
+  const [addingEntry, setAddingEntry] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -70,15 +84,28 @@ export default function GiveawayEntriesScreen() {
               displayName: d.winnerName ?? 'Unknown',
               email: d.winnerEmail ?? '',
               notified: d.winnerNotified ?? false,
+              isManual: d.winnerIsManual ?? false,
             });
           }
         }
 
-        // Load entries with user profiles
+        // Load entries with user profiles. Manually-added (email) entries
+        // carry their own name/email on the doc instead of a real uid to
+        // join against, so skip the users/ lookup for those.
         const loaded: Entry[] = await Promise.all(
           entriesSnap.docs.map(async d => {
             const userId = d.id;
-            const enteredAt: Date = d.data().enteredAt?.toDate() || new Date();
+            const data = d.data();
+            const enteredAt: Date = data.enteredAt?.toDate() || new Date();
+            if (data.isManualEntry) {
+              return {
+                userId,
+                displayName: data.manualDisplayName || 'Unknown',
+                email: data.manualEmail || '',
+                enteredAt,
+                isManual: true,
+              };
+            }
             try {
               const userSnap = await getDoc(doc(db, 'users', userId));
               const userData = userSnap.data();
@@ -87,9 +114,10 @@ export default function GiveawayEntriesScreen() {
                 displayName: userData?.displayName || 'Unknown',
                 email: userData?.email || '',
                 enteredAt,
+                isManual: false,
               };
             } catch {
-              return { userId, displayName: 'Unknown', email: '', enteredAt };
+              return { userId, displayName: 'Unknown', email: '', enteredAt, isManual: false };
             }
           }),
         );
@@ -114,6 +142,38 @@ export default function GiveawayEntriesScreen() {
     setPendingWinner(entries[idx]);
   };
 
+  const handleAddManualEntry = async () => {
+    const name = manualName.trim();
+    const email = manualEmail.trim();
+    if (!name) {
+      Alert.alert('Missing name', 'Please enter a name for this entry.');
+      return;
+    }
+    if (!email || !EMAIL_REGEX.test(email)) {
+      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      return;
+    }
+    setAddingEntry(true);
+    try {
+      const entryId = `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      await setDoc(doc(db, 'giveaways', giveawayId, 'entries', entryId), {
+        isManualEntry: true,
+        manualDisplayName: name,
+        manualEmail: email,
+        enteredAt: serverTimestamp(),
+      });
+      const newEntry: Entry = { userId: entryId, displayName: name, email, enteredAt: new Date(), isManual: true };
+      setEntries(prev => [...prev, newEntry].sort((a, b) => a.enteredAt.getTime() - b.enteredAt.getTime()));
+      setManualName('');
+      setManualEmail('');
+      setShowAddEntry(false);
+    } catch {
+      Alert.alert('Error', 'Failed to add entry. Please try again.');
+    } finally {
+      setAddingEntry(false);
+    }
+  };
+
   const handleConfirmWinner = async () => {
     if (!pendingWinner) return;
     setSavingWinner(true);
@@ -123,12 +183,14 @@ export default function GiveawayEntriesScreen() {
         winnerName: pendingWinner.displayName,
         winnerEmail: pendingWinner.email,
         winnerNotified: false,
+        winnerIsManual: pendingWinner.isManual,
       });
       setSavedWinner({
         userId: pendingWinner.userId,
         displayName: pendingWinner.displayName,
         email: pendingWinner.email,
         notified: false,
+        isManual: pendingWinner.isManual,
       });
       setPendingWinner(null);
     } catch {
@@ -171,6 +233,9 @@ export default function GiveawayEntriesScreen() {
           <Text style={styles.headerTitle} numberOfLines={1}>Entries</Text>
           <Text style={styles.headerSubtitle} numberOfLines={1}>{giveawayTitle}</Text>
         </View>
+        <TouchableOpacity onPress={() => setShowAddEntry(true)} hitSlop={8} style={styles.addEntryBtn}>
+          <Ionicons name="add" size={26} color={colors.accent} />
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -194,7 +259,14 @@ export default function GiveawayEntriesScreen() {
                     ) : null}
                   </View>
                 </View>
-                {savedWinner.notified ? (
+                {savedWinner.isManual ? (
+                  <View style={styles.notifiedRow}>
+                    <Ionicons name="mail-outline" size={15} color={colors.textTertiary} />
+                    <Text style={styles.manualNoteText}>
+                      Entered via email — notify them directly, there's no app account to send an in-app notification to.
+                    </Text>
+                  </View>
+                ) : savedWinner.notified ? (
                   <View style={styles.notifiedRow}>
                     <Ionicons name="checkmark-circle" size={15} color="#34C759" />
                     <Text style={styles.notifiedText}>Notification sent</Text>
@@ -248,7 +320,14 @@ export default function GiveawayEntriesScreen() {
                     }
                   </View>
                   <View style={styles.entryInfo}>
-                    <Text style={styles.entryName}>{e.displayName}</Text>
+                    <View style={styles.entryNameRow}>
+                      <Text style={styles.entryName}>{e.displayName}</Text>
+                      {e.isManual && (
+                        <View style={styles.manualBadge}>
+                          <Text style={styles.manualBadgeText}>Email entry</Text>
+                        </View>
+                      )}
+                    </View>
                     {e.email ? <Text style={styles.entryEmail}>{e.email}</Text> : null}
                     <Text style={styles.entryDate}>Entered {formatDate(e.enteredAt)}</Text>
                   </View>
@@ -275,6 +354,63 @@ export default function GiveawayEntriesScreen() {
           )}
         </>
       )}
+
+      {/* Add manual (email) entry modal */}
+      <Modal
+        visible={showAddEntry}
+        animationType="fade"
+        transparent
+        onRequestClose={() => !addingEntry && setShowAddEntry(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalCard}>
+            <Text style={styles.modalHeading}>Add Email Entry</Text>
+            <Text style={styles.modalMeta}>
+              For entries that came in over email instead of the app.
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholderTextColor={colors.textTertiary}
+              value={manualName}
+              onChangeText={setManualName}
+              placeholder="Name"
+              autoCapitalize="words"
+            />
+            <TextInput
+              style={styles.modalInput}
+              placeholderTextColor={colors.textTertiary}
+              value={manualEmail}
+              onChangeText={setManualEmail}
+              placeholder="Email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity
+              style={[styles.confirmBtn, addingEntry && styles.confirmBtnDisabled]}
+              onPress={handleAddManualEntry}
+              disabled={addingEntry}
+              activeOpacity={0.8}
+            >
+              {addingEntry ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.confirmBtnText}>Add Entry</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={() => setShowAddEntry(false)}
+              disabled={addingEntry}
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Pending winner confirmation modal */}
       <Modal
@@ -343,6 +479,7 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 2 },
   headerTitleBlock: { flex: 1 },
+  addEntryBtn: { padding: 2 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
   headerSubtitle: { fontSize: 13, color: colors.textTertiary, marginTop: 1 },
 
@@ -375,6 +512,7 @@ const styles = StyleSheet.create({
   winnerBannerEmail: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
   notifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 2 },
   notifiedText: { fontSize: 13, color: '#34C759', fontWeight: '500' },
+  manualNoteText: { fontSize: 12, color: colors.textTertiary, flex: 1, lineHeight: 16 },
   sendNotifBtn: {
     backgroundColor: colors.accent,
     borderRadius: 10,
@@ -425,7 +563,15 @@ const styles = StyleSheet.create({
   entryIndexText: { fontSize: 13, fontWeight: '600', color: colors.textTertiary },
   entryIndexTrophy: { fontSize: 16 },
   entryInfo: { flex: 1 },
+  entryNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   entryName: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  manualBadge: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  manualBadgeText: { fontSize: 10, fontWeight: '600', color: colors.textTertiary, textTransform: 'uppercase' },
   entryEmail: { fontSize: 13, color: colors.textSecondary, marginTop: 1 },
   entryDate: { fontSize: 12, color: colors.textTertiary, marginTop: 3 },
 
@@ -475,6 +621,15 @@ const styles = StyleSheet.create({
   modalName: { fontSize: 22, fontWeight: '700', color: colors.textPrimary, textAlign: 'center' },
   modalEmail: { fontSize: 14, color: colors.textSecondary, marginTop: 4, textAlign: 'center' },
   modalMeta: { fontSize: 12, color: colors.textTertiary, marginTop: 12, textAlign: 'center' },
+  modalInput: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 16,
+    color: colors.textPrimary,
+    marginTop: 16,
+    width: '100%',
+  },
   confirmBtn: {
     backgroundColor: colors.accent,
     borderRadius: 10,

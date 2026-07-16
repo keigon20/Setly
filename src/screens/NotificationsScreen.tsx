@@ -45,7 +45,7 @@ async function fetchEvent(eventId: string): Promise<MusicEvent | null> {
       artists: d.artists || [],
       venue: d.venue,
       date: d.date?.toDate() || new Date(),
-      cost: d.cost || 0,
+      cost: d.cost ?? null,
       notes: d.notes || '',
       imageUri: d.imageUri,
       overallRating: d.overallRating,

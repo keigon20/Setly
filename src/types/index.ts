@@ -21,7 +21,7 @@ export interface MusicEvent {
   artists: string[];
   venue: string;
   date: Date;
-  cost: number;
+  cost: number | null;
   notes: string;
   imageUri?: string;
   overallRating?: number; // 0.0 - 10.0
@@ -99,6 +99,15 @@ export interface UserProfile {
   displayName: string;
   createdAt: Date;
   isAdmin?: boolean;
+  // Self-reported in onboarding/Settings: "US" or "OTHER". Unset until the
+  // user sets it - giveaways are gated on this being "US".
+  country?: 'US' | 'OTHER';
+  // Self-reported in onboarding, used only to gate giveaway eligibility
+  // (18+). Never shown to other users.
+  birthday?: Date;
+  // Set once the user finishes the post-signup onboarding flow (profile
+  // form + app-tour slides). Missing/false means onboarding should show.
+  onboardingCompleted?: boolean;
 }
 
 // Statistics type

@@ -18,6 +18,7 @@ import {
   onSnapshot,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -93,6 +94,20 @@ export default function GiveawaysScreen() {
     if (!user) return;
     setEntering(true);
     try {
+      const entriesSnap = await getDocs(collection(db, 'giveaways', giveaway.id, 'entries'));
+      const emailAlreadyEntered = entriesSnap.docs.some(d => {
+        const data = d.data();
+        return data.isManualEntry && (data.manualEmail || '').toLowerCase() === user.email.toLowerCase();
+      });
+      if (emailAlreadyEntered) {
+        setTcModal(null);
+        Alert.alert(
+          'Already Entered',
+          'Your email is already entered in the giveaway. Please contact support if you believe this is an error.',
+        );
+        return;
+      }
+
       await setDoc(doc(db, 'giveaways', giveaway.id, 'entries', user.id), {
         userId: user.id,
         enteredAt: serverTimestamp(),

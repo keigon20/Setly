@@ -105,7 +105,9 @@ export default function EventDetailScreen({ event: propEvent, onEdit, onClose }:
 
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Cost:</Text>
-          <Text style={styles.costValue}>${event.cost.toFixed(2)}</Text>
+          <Text style={styles.costValue}>
+            {event.cost != null ? `$${event.cost.toFixed(2)}` : 'Not recorded'}
+          </Text>
         </View>
 
         {(event.overallRating || event.soundRating || event.crowdRating || event.setlistRating) && (

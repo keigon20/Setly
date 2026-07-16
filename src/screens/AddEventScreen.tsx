@@ -22,6 +22,7 @@ import { MusicEvent } from '../types';
 import { EventPrefill, RootStackParamList } from '../types/navigation';
 import { colors } from '../theme';
 import StarRating from '../components/StarRating';
+import DateField from '../components/DateField';
 import OverallRatingInput from '../components/OverallRatingInput';
 import { isLocalUri, uploadEventImage } from '../utils/uploadImage';
 import { searchTicketmasterVenues, TicketmasterVenueResult } from '../utils/ticketmaster';
@@ -76,10 +77,12 @@ export default function AddEventScreen({ onClose, eventToEdit: propEvent }: AddE
   };
   const [date, setDate] = useState(
     eventToEdit
-      ? new Date(eventToEdit.date).toISOString().split('T')[0]
-      : prefill?.date || new Date().toISOString().split('T')[0]
+      ? new Date(eventToEdit.date)
+      : prefill?.date
+        ? new Date(prefill.date)
+        : new Date()
   );
-  const [cost, setCost] = useState(eventToEdit?.cost.toString() || '');
+  const [cost, setCost] = useState(eventToEdit?.cost != null ? eventToEdit.cost.toString() : '');
   const [notes, setNotes] = useState(eventToEdit?.notes || '');
   const [imageUri, setImageUri] = useState(eventToEdit?.imageUri || prefill?.imageUri || '');
   const [overallRating, setOverallRating] = useState(eventToEdit?.overallRating ?? 0);
@@ -128,12 +131,15 @@ export default function AddEventScreen({ onClose, eventToEdit: propEvent }: AddE
         finalImageUri = await uploadEventImage(imageUri, user.id);
       }
 
+      const trimmedCost = cost.trim();
+      const parsedCost = trimmedCost === '' ? NaN : parseFloat(trimmedCost);
+
       const eventData = {
         title: title.trim(),
         artists,
         venue: venue.trim(),
-        date: new Date(date),
-        cost: parseFloat(cost) || 0,
+        date,
+        cost: Number.isNaN(parsedCost) ? null : parsedCost,
         notes: notes.trim(),
         imageUri: finalImageUri || undefined,
         overallRating: overallRating || undefined,
@@ -263,16 +269,12 @@ export default function AddEventScreen({ onClose, eventToEdit: propEvent }: AddE
             )}
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date</Text>
-            <TextInput
-              style={styles.input}
-              placeholderTextColor={colors.textTertiary}
-              value={date}
-              onChangeText={setDate}
-              placeholder="YYYY-MM-DD"
-            />
-          </View>
+          <DateField
+            label="Date"
+            value={date}
+            onChange={setDate}
+            maximumDate={new Date()}
+          />
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Cost ($)</Text>

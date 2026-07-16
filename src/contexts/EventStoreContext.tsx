@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import {
   collection,
   doc,
@@ -21,6 +21,16 @@ import { scheduleEventReminder, cancelEventReminder } from '../utils/notificatio
 const EVENTS_STORAGE_KEY = 'music_events';
 const EVENTS_COLLECTION = 'events';
 
+function parseStoredEvents(raw: string): MusicEvent[] {
+  const parsed = JSON.parse(raw);
+  return parsed.map((event: any) => ({
+    ...event,
+    date: new Date(event.date),
+    createdAt: new Date(event.createdAt),
+    updatedAt: new Date(event.updatedAt)
+  }));
+}
+
 interface EventStoreContextType {
   events: MusicEvent[];
   isLoading: boolean;
@@ -30,6 +40,12 @@ interface EventStoreContextType {
   getEventById: (id: string) => MusicEvent | undefined;
   updateEventGroup: (eventIds: string[], festivalName: string | undefined) => Promise<void>;
   backfillDisplayName: (displayName: string) => Promise<void>;
+  // Local (guest) events found the moment sign-up/login completes, awaiting
+  // a user decision to upload them to the now-authenticated account or
+  // discard them. Null once there's nothing pending / the decision is made.
+  pendingLocalEvents: MusicEvent[] | null;
+  migrateLocalEvents: () => Promise<void>;
+  discardLocalEvents: () => Promise<void>;
   totalEvents: number;
   totalMoneySpent: number;
   uniqueArtists: number;
@@ -61,10 +77,29 @@ export function EventStoreProvider({ children }: EventStoreProviderProps) {
   const { user, isAuthenticated } = useAuth();
   const [events, setEvents] = useState<MusicEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingLocalEvents, setPendingLocalEvents] = useState<MusicEvent[] | null>(null);
+  const prevIsAuthenticatedRef = useRef(isAuthenticated);
 
   // Load events based on auth state
   useEffect(() => {
+    const wasAuthenticated = prevIsAuthenticatedRef.current;
+    prevIsAuthenticatedRef.current = isAuthenticated;
+
     if (isAuthenticated && user) {
+      // Guest -> account transition: check for local events left behind
+      // before they're superseded by this account's (possibly empty)
+      // Firestore data, so we can offer to upload them.
+      if (!wasAuthenticated) {
+        AsyncStorage.getItem(EVENTS_STORAGE_KEY).then(stored => {
+          if (stored) {
+            const localEvents = parseStoredEvents(stored);
+            if (localEvents.length > 0) setPendingLocalEvents(localEvents);
+          }
+        }).catch(error => {
+          console.error('[EventStore] Error checking for local events to migrate:', error);
+        });
+      }
+
       // Load from Firestore - top-level collection so friends' events can be queried by userId
       const q = query(
         collection(db, EVENTS_COLLECTION),
@@ -81,7 +116,7 @@ export function EventStoreProvider({ children }: EventStoreProviderProps) {
             artists: data.artists || [],
             venue: data.venue,
             date: data.date?.toDate() || new Date(),
-            cost: data.cost || 0,
+            cost: data.cost ?? null,
             notes: data.notes || '',
             imageUri: data.imageUri || undefined,
             overallRating: data.overallRating,
@@ -119,15 +154,7 @@ export function EventStoreProvider({ children }: EventStoreProviderProps) {
     try {
       const stored = await AsyncStorage.getItem(EVENTS_STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
-        // Convert date strings back to Date objects
-        const eventsWithDates = parsed.map((event: any) => ({
-          ...event,
-          date: new Date(event.date),
-          createdAt: new Date(event.createdAt),
-          updatedAt: new Date(event.updatedAt)
-        }));
-        setEvents(eventsWithDates);
+        setEvents(parseStoredEvents(stored));
       }
     } catch (error) {
       console.error('Error loading local events:', error);
@@ -171,6 +198,27 @@ export function EventStoreProvider({ children }: EventStoreProviderProps) {
       setEvents(prev => [{ ...newEvent, id }, ...prev]);
       return id;
     }
+  };
+
+  const migrateLocalEvents = async () => {
+    if (!pendingLocalEvents || !isAuthenticated || !user) return;
+
+    // Migrate one at a time, shrinking the pending list as each succeeds, so
+    // a retry after a mid-migration failure (e.g. network drop) doesn't
+    // re-upload events that already made it to Firestore.
+    let remaining = pendingLocalEvents;
+    while (remaining.length > 0) {
+      const { id, createdAt, updatedAt, ...eventData } = remaining[0];
+      await addEvent(eventData);
+      remaining = remaining.slice(1);
+      setPendingLocalEvents(remaining);
+    }
+    await AsyncStorage.removeItem(EVENTS_STORAGE_KEY);
+  };
+
+  const discardLocalEvents = async () => {
+    await AsyncStorage.removeItem(EVENTS_STORAGE_KEY);
+    setPendingLocalEvents(null);
   };
 
   const updateEvent = async (event: MusicEvent) => {
@@ -244,7 +292,8 @@ export function EventStoreProvider({ children }: EventStoreProviderProps) {
 
   // Statistics calculations
   const totalEvents = events.length;
-  const totalMoneySpent = events.reduce((sum, event) => sum + event.cost, 0);
+  const eventsWithCost = events.filter((event): event is MusicEvent & { cost: number } => event.cost != null);
+  const totalMoneySpent = eventsWithCost.reduce((sum, event) => sum + event.cost, 0);
   
   const uniqueArtists = React.useMemo(() => {
     const allArtists = events.flatMap(e => e.artists);
@@ -266,7 +315,7 @@ export function EventStoreProvider({ children }: EventStoreProviderProps) {
     return Object.entries(artistCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
   }, [events]);
   
-  const averageCost = events.length > 0 ? totalMoneySpent / totalEvents : 0;
+  const averageCost = eventsWithCost.length > 0 ? totalMoneySpent / eventsWithCost.length : 0;
   
   const mostRecentEvent = React.useMemo(() => {
     const now = new Date();
@@ -293,11 +342,12 @@ export function EventStoreProvider({ children }: EventStoreProviderProps) {
 
   const statisticsForYear = (year: number): YearStatistics => {
     const yearEvents = eventsForYear(year);
-    
+    const yearEventsWithCost = yearEvents.filter((e): e is MusicEvent & { cost: number } => e.cost != null);
+
     return {
       year,
       totalEvents: yearEvents.length,
-      totalMoneySpent: yearEvents.reduce((sum, e) => sum + e.cost, 0),
+      totalMoneySpent: yearEventsWithCost.reduce((sum, e) => sum + e.cost, 0),
       uniqueArtists: new Set(yearEvents.flatMap(e => e.artists)).size,
       uniqueVenues: new Set(yearEvents.map(e => e.venue)).size,
       favoriteArtist: (() => {
@@ -305,8 +355,8 @@ export function EventStoreProvider({ children }: EventStoreProviderProps) {
         yearEvents.flatMap(e => e.artists).forEach(a => { counts[a] = (counts[a] || 0) + 1; });
         return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
       })(),
-      averageCost: yearEvents.length > 0 
-        ? yearEvents.reduce((sum, e) => sum + e.cost, 0) / yearEvents.length 
+      averageCost: yearEventsWithCost.length > 0
+        ? yearEventsWithCost.reduce((sum, e) => sum + e.cost, 0) / yearEventsWithCost.length
         : 0,
       mostRecentEvent: yearEvents.length > 0 
         ? yearEvents.reduce((latest, e) => e.date > latest.date ? e : latest)
@@ -326,6 +376,9 @@ export function EventStoreProvider({ children }: EventStoreProviderProps) {
     getEventById,
     updateEventGroup,
     backfillDisplayName,
+    pendingLocalEvents,
+    migrateLocalEvents,
+    discardLocalEvents,
     totalEvents,
     totalMoneySpent,
     uniqueArtists,

@@ -81,7 +81,7 @@ export default function HomeScreen() {
           artists: data.artists || [],
           venue: data.venue,
           date: data.date?.toDate() || new Date(),
-          cost: data.cost || 0,
+          cost: data.cost ?? null,
           notes: data.notes || '',
           imageUri: data.imageUri || undefined,
           overallRating: data.overallRating,

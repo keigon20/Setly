@@ -13,6 +13,8 @@ import { EventStoreProvider } from './src/contexts/EventStoreContext';
 import { FriendsProvider } from './src/contexts/FriendsContext';
 import { NotificationsProvider } from './src/contexts/NotificationsContext';
 import AuthScreen from './src/screens/AuthScreen';
+import OnboardingScreen from './src/screens/OnboardingScreen';
+import MigrateEventsModal from './src/components/MigrateEventsModal';
 import HomeScreen from './src/screens/HomeScreen';
 import JournalScreen from './src/screens/JournalScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
@@ -52,7 +54,8 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function MainTabs({ navigation, onSignIn }: { navigation: any; onSignIn: () => void }) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const isGiveawaysEligible = user?.country === 'US';
 
   return (
     <Tab.Navigator
@@ -86,13 +89,15 @@ function MainTabs({ navigation, onSignIn }: { navigation: any; onSignIn: () => v
           tabBarIcon: ({ color, size }) => <Ionicons name="people" color={color} size={size} />,
         }}
       />
-      <Tab.Screen
-        name="Giveaways"
-        component={GiveawaysScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => <Ionicons name="gift" color={color} size={size} />,
-        }}
-      />
+      {isGiveawaysEligible && (
+        <Tab.Screen
+          name="Giveaways"
+          component={GiveawaysScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => <Ionicons name="gift" color={color} size={size} />,
+          }}
+        />
+      )}
       <Tab.Screen
         name="Profile"
         options={{
@@ -115,7 +120,7 @@ function MainTabs({ navigation, onSignIn }: { navigation: any; onSignIn: () => v
 }
 
 function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
@@ -141,28 +146,35 @@ function AppContent() {
     );
   }
 
+  if (isAuthenticated && !user?.onboardingCompleted) {
+    return <OnboardingScreen />;
+  }
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="MainTabs">
-        {({ navigation }) => <MainTabs navigation={navigation} onSignIn={() => setShowAuth(false)} />}
-      </Stack.Screen>
-      <Stack.Screen name="SearchEvent" component={SearchEventScreen} />
-      <Stack.Screen name="AddEvent" component={AddEventScreen} />
-      <Stack.Screen name="EventDetail" component={EventDetailScreen} />
-      <Stack.Screen name="ManageFriends" component={FriendsScreen} />
-      <Stack.Screen name="Comments" component={CommentsScreen} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} />
-      <Stack.Screen name="Settings" component={SettingsScreen} />
-      <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
-      <Stack.Screen name="Achievements" component={AchievementsScreen} />
-      <Stack.Screen name="YearlyRecap" component={YearlyRecapScreen} />
-      <Stack.Screen name="PastReports" component={PastReportsScreen} />
-      <Stack.Screen name="BannedEmails" component={BannedEmailsScreen} />
-      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-      <Stack.Screen name="TermsOfUse" component={TermsOfUseScreen} />
-      <Stack.Screen name="GroupEdit" component={GroupEditScreen} />
-      <Stack.Screen name="GiveawayEntries" component={GiveawayEntriesScreen} />
-    </Stack.Navigator>
+    <>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="MainTabs">
+          {({ navigation }) => <MainTabs navigation={navigation} onSignIn={() => setShowAuth(false)} />}
+        </Stack.Screen>
+        <Stack.Screen name="SearchEvent" component={SearchEventScreen} />
+        <Stack.Screen name="AddEvent" component={AddEventScreen} />
+        <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+        <Stack.Screen name="ManageFriends" component={FriendsScreen} />
+        <Stack.Screen name="Comments" component={CommentsScreen} />
+        <Stack.Screen name="Notifications" component={NotificationsScreen} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
+        <Stack.Screen name="Achievements" component={AchievementsScreen} />
+        <Stack.Screen name="YearlyRecap" component={YearlyRecapScreen} />
+        <Stack.Screen name="PastReports" component={PastReportsScreen} />
+        <Stack.Screen name="BannedEmails" component={BannedEmailsScreen} />
+        <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+        <Stack.Screen name="TermsOfUse" component={TermsOfUseScreen} />
+        <Stack.Screen name="GroupEdit" component={GroupEditScreen} />
+        <Stack.Screen name="GiveawayEntries" component={GiveawayEntriesScreen} />
+      </Stack.Navigator>
+      <MigrateEventsModal />
+    </>
   );
 }
 

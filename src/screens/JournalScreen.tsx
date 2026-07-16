@@ -113,7 +113,7 @@ export default function JournalScreen({ onEventPress, onAddEvent }: JournalScree
           <Text style={styles.eventVenue}>{item.venue}</Text>
           <View style={styles.eventMeta}>
             <Text style={styles.eventDate}>{new Date(item.date).toLocaleDateString()}</Text>
-            <Text style={styles.eventCost}>${item.cost.toFixed(2)}</Text>
+            {item.cost != null && <Text style={styles.eventCost}>${item.cost.toFixed(2)}</Text>}
           </View>
         </View>
       </View>

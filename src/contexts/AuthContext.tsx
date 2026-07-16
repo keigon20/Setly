@@ -11,10 +11,13 @@ import {
   updateProfile,
   deleteUser,
   GoogleAuthProvider,
+  OAuthProvider,
   signInWithCredential
 } from 'firebase/auth';
 import { GoogleSignin, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
+import { doc, setDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '../utils/firebase';
 import { UserProfile } from '../types';
 import { APP_VARIANT } from '../config/env';
@@ -43,9 +46,15 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName: string) => Promise<boolean>;
   login: (email: string, password: string) => Promise<boolean>;
   signInWithGoogle: () => Promise<boolean>;
+  signInWithApple: () => Promise<boolean>;
+  isAppleSignInAvailable: boolean;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<boolean>;
   updateDisplayName: (displayName: string) => Promise<boolean>;
+  updateCountry: (country: 'US' | 'OTHER') => Promise<boolean>;
+  updateBirthday: (birthday: Date) => Promise<boolean>;
+  completeOnboardingProfile: (displayName: string, country: 'US' | 'OTHER', birthday: Date) => Promise<boolean>;
+  finishOnboarding: () => Promise<boolean>;
   deleteAccount: () => Promise<{ success: boolean; message?: string }>;
   sendVerificationEmail: () => Promise<boolean>;
   refreshEmailVerified: () => Promise<boolean>;
@@ -73,6 +82,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAppleSignInAvailable, setIsAppleSignInAvailable] = useState(false);
+
+  useEffect(() => {
+    AppleAuthentication.isAvailableAsync().then(setIsAppleSignInAvailable);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -121,7 +135,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
               id: firebaseUser.uid,
               email: firebaseUser.email || '',
               displayName: userData.displayName || firebaseUser.displayName || '',
-              createdAt: userData.createdAt?.toDate() || new Date()
+              createdAt: userData.createdAt?.toDate() || new Date(),
+              country: userData.country,
+              birthday: userData.birthday?.toDate(),
+              onboardingCompleted: userData.onboardingCompleted || false
             };
             setUser(resolvedUser);
           } else {
@@ -297,6 +314,59 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const signInWithApple = async (): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Firebase verifies the hashed nonce against the identity token, then we
+      // hand it the raw nonce so it can confirm we're the ones who requested it.
+      const rawNonce = Array.from(await Crypto.getRandomBytesAsync(16))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+
+      const appleCredential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+        nonce: hashedNonce,
+      });
+
+      if (!appleCredential.identityToken) {
+        throw new Error('No identity token received from Apple');
+      }
+
+      const provider = new OAuthProvider('apple.com');
+      const credential = provider.credential({
+        idToken: appleCredential.identityToken,
+        rawNonce,
+      });
+
+      const userCredential = await signInWithCredential(auth, credential);
+
+      // Apple only returns the name on the very first sign-in for this app,
+      // so grab it now or it's gone for good.
+      const { givenName, familyName } = appleCredential.fullName ?? {};
+      const fullName = [givenName, familyName].filter(Boolean).join(' ').trim();
+      if (fullName && !userCredential.user.displayName) {
+        await updateProfile(userCredential.user, { displayName: fullName });
+      }
+
+      return true;
+    } catch (err: any) {
+      if (err.code === 'ERR_REQUEST_CANCELED') {
+        return false;
+      }
+      console.error('Apple Sign-In error:', err);
+      setError(mapFirebaseError(err.code) || err.message || 'Failed to sign in with Apple');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const updateDisplayName = async (displayName: string): Promise<boolean> => {
     const trimmed = displayName.trim();
     if (!trimmed || !firebaseUser || !user) return false;
@@ -309,6 +379,71 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return true;
     } catch (err: any) {
       setError(mapFirebaseError(err.code) || 'Failed to update name');
+      return false;
+    }
+  };
+
+  const updateCountry = async (country: 'US' | 'OTHER'): Promise<boolean> => {
+    if (!firebaseUser || !user) return false;
+
+    setError(null);
+    try {
+      await setDoc(doc(db, 'users', firebaseUser.uid), { country }, { merge: true });
+      setUser(prev => prev ? { ...prev, country } : prev);
+      return true;
+    } catch (err: any) {
+      setError(mapFirebaseError(err.code) || 'Failed to update country');
+      return false;
+    }
+  };
+
+  const updateBirthday = async (birthday: Date): Promise<boolean> => {
+    if (!firebaseUser || !user) return false;
+
+    setError(null);
+    try {
+      await setDoc(doc(db, 'users', firebaseUser.uid), { birthday: Timestamp.fromDate(birthday) }, { merge: true });
+      setUser(prev => prev ? { ...prev, birthday } : prev);
+      return true;
+    } catch (err: any) {
+      setError(mapFirebaseError(err.code) || 'Failed to update birthday');
+      return false;
+    }
+  };
+
+  const completeOnboardingProfile = async (
+    displayName: string,
+    country: 'US' | 'OTHER',
+    birthday: Date
+  ): Promise<boolean> => {
+    const trimmed = displayName.trim();
+    if (!trimmed || !firebaseUser || !user) return false;
+
+    setError(null);
+    try {
+      await updateProfile(firebaseUser, { displayName: trimmed });
+      await setDoc(
+        doc(db, 'users', firebaseUser.uid),
+        { displayName: trimmed, country, birthday: Timestamp.fromDate(birthday) },
+        { merge: true }
+      );
+      setUser(prev => prev ? { ...prev, displayName: trimmed, country, birthday } : prev);
+      return true;
+    } catch (err: any) {
+      setError(mapFirebaseError(err.code) || 'Failed to save your info');
+      return false;
+    }
+  };
+
+  const finishOnboarding = async (): Promise<boolean> => {
+    if (!firebaseUser || !user) return false;
+
+    try {
+      await setDoc(doc(db, 'users', firebaseUser.uid), { onboardingCompleted: true }, { merge: true });
+      setUser(prev => prev ? { ...prev, onboardingCompleted: true } : prev);
+      return true;
+    } catch (err: any) {
+      console.error('[Auth] Failed to finish onboarding:', err?.code, err?.message);
       return false;
     }
   };
@@ -372,9 +507,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signUp,
     login,
     signInWithGoogle,
+    signInWithApple,
+    isAppleSignInAvailable,
     logout,
     resetPassword,
     updateDisplayName,
+    updateCountry,
+    updateBirthday,
+    completeOnboardingProfile,
+    finishOnboarding,
     deleteAccount,
     sendVerificationEmail,
     refreshEmailVerified,
