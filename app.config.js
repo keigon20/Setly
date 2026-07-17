@@ -1,4 +1,5 @@
 const { withProjectBuildGradle } = require('@expo/config-plugins');
+const withAppCheckCoreHeaderFix = require('./plugins/withAppCheckCoreHeaderFix');
 
 const APP_VARIANT = process.env.EXPO_PUBLIC_APP_VARIANT === 'staging' ? 'staging' : 'production';
 const isStaging = APP_VARIANT === 'staging';
@@ -69,6 +70,7 @@ module.exports = {
     },
     plugins: [
       withKotlinMetadataSkip,
+      withAppCheckCoreHeaderFix,
       '@react-native-community/datetimepicker',
       'expo-sharing',
       'expo-web-browser',
@@ -103,12 +105,7 @@ module.exports = {
             extraPods: [
               { name: 'GoogleUtilities', modular_headers: true },
               { name: 'RecaptchaInterop', modular_headers: true },
-              // FirebaseAppCheck 12.15.0's FIRRecaptchaProvider.m calls into
-              // AppCheckCore's GACRecaptchaProvider by name. Newer AppCheckCore
-              // releases have broken that symbol, so pin to the version known
-              // to still work until react-native-firebase bumps its Firebase
-              // SDK pin past 12.15.0.
-              { name: 'AppCheckCore', version: '11.3.0' },
+              { name: 'AppCheckCore', version: '11.3.0', modular_headers: true },
             ],
           },
         },
