@@ -1,5 +1,5 @@
 const { withProjectBuildGradle } = require('@expo/config-plugins');
-const withAppCheckCoreHeaderFix = require('./plugins/withAppCheckCoreHeaderFix');
+const withPatchFirebaseAppCheckRecaptcha = require('./plugins/withPatchFirebaseAppCheckRecaptcha');
 
 const APP_VARIANT = process.env.EXPO_PUBLIC_APP_VARIANT === 'staging' ? 'staging' : 'production';
 const isStaging = APP_VARIANT === 'staging';
@@ -9,8 +9,10 @@ const isStaging = APP_VARIANT === 'staging';
 // "com.setly.app" was already taken on Play Store, so the Android production
 // id had to change to "com.setlyapp.android" without touching the iOS one,
 // and staging (already registered in Firebase for Google Sign-In) stays put.
+// "com.setly.app" turned out to also be taken on Apple's side (someone else's
+// App ID), so the iOS production id had to change to "com.setlyapp.ios" too.
 const ANDROID_PACKAGE = isStaging ? 'com.setly.app.staging' : 'com.setlyapp.android';
-const IOS_BUNDLE_ID = isStaging ? 'com.setly.app.staging' : 'com.setly.app';
+const IOS_BUNDLE_ID = isStaging ? 'com.setly.app.staging' : 'com.setlyapp.ios';
 
 // play-services-ads 25.x ships Kotlin 2.3.0 metadata; the EAS Kotlin 2.1.x
 // compiler rejects it. The compiler version is controlled internally by
@@ -70,7 +72,7 @@ module.exports = {
     },
     plugins: [
       withKotlinMetadataSkip,
-      withAppCheckCoreHeaderFix,
+      withPatchFirebaseAppCheckRecaptcha,
       '@react-native-community/datetimepicker',
       'expo-sharing',
       'expo-web-browser',
@@ -105,7 +107,6 @@ module.exports = {
             extraPods: [
               { name: 'GoogleUtilities', modular_headers: true },
               { name: 'RecaptchaInterop', modular_headers: true },
-              { name: 'AppCheckCore', version: '11.3.0', modular_headers: true },
             ],
           },
         },
