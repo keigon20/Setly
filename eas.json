@@ -33,6 +33,12 @@
   },
   "submit": {
     "production": {
+      "ios": {
+        "appleId": "r2keigo@icloud.com",
+        "ascAppId": "6791809882",
+        "appleTeamId": "2AR9JL77F3",
+        "sku": "com.setlyapp.ios"
+      },
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
         "track": "internal"
