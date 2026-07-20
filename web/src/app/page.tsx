@@ -150,12 +150,12 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-textTertiary">
           <span>&copy; 2025 Setly. All rights reserved.</span>
           <nav className="flex gap-6">
-            <a href="#privacy" className="hover:text-textSecondary transition-colors">
+            <Link href="/privacy" className="hover:text-textSecondary transition-colors">
               Privacy Policy
-            </a>
-            <a href="#terms" className="hover:text-textSecondary transition-colors">
+            </Link>
+            <Link href="/terms" className="hover:text-textSecondary transition-colors">
               Terms of Use
-            </a>
+            </Link>
           </nav>
         </div>
       </footer>

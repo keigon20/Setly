@@ -8,12 +8,9 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../utils/firebase';
 import { useAuth } from './AuthContext';
 import { AppNotification, AppNotificationType, NotificationPrefs, DEFAULT_NOTIFICATION_PREFS } from '../types';
-
-const PREFS_KEY = 'notif_prefs';
 
 // Map notification type to the pref key that gates it.
 // Moderation types (content_under_review, report_outcome) are omitted — they always show.
@@ -49,18 +46,9 @@ export function useNotifications() {
 }
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, updateNotificationPref } = useAuth();
   const [allNotifications, setAllNotifications] = useState<AppNotification[]>([]);
-  const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
-
-  // Load prefs from AsyncStorage on mount
-  useEffect(() => {
-    AsyncStorage.getItem(PREFS_KEY).then(stored => {
-      if (stored) {
-        setPrefs({ ...DEFAULT_NOTIFICATION_PREFS, ...JSON.parse(stored) });
-      }
-    }).catch(console.error);
-  }, []);
+  const prefs = user?.notificationPrefs ?? DEFAULT_NOTIFICATION_PREFS;
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -98,9 +86,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated, user]);
 
   const updatePref = async (key: keyof NotificationPrefs, value: boolean) => {
-    const updated = { ...prefs, [key]: value };
-    setPrefs(updated);
-    await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(updated));
+    await updateNotificationPref(key, value);
   };
 
   const markRead = async (notificationId: string) => {

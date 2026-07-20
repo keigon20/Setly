@@ -19,7 +19,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import { doc, setDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '../utils/firebase';
-import { UserProfile } from '../types';
+import { UserProfile, NotificationPrefs, DEFAULT_NOTIFICATION_PREFS } from '../types';
 import { APP_VARIANT } from '../config/env';
 import { deleteAllUserData } from '../utils/deleteAccount';
 
@@ -53,6 +53,7 @@ interface AuthContextType {
   updateDisplayName: (displayName: string) => Promise<boolean>;
   updateCountry: (country: 'US' | 'OTHER') => Promise<boolean>;
   updateBirthday: (birthday: Date) => Promise<boolean>;
+  updateNotificationPref: (key: keyof NotificationPrefs, value: boolean) => Promise<boolean>;
   completeOnboardingProfile: (displayName: string, country: 'US' | 'OTHER', birthday: Date) => Promise<boolean>;
   finishOnboarding: () => Promise<boolean>;
   deleteAccount: () => Promise<{ success: boolean; message?: string }>;
@@ -138,7 +139,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
               createdAt: userData.createdAt?.toDate() || new Date(),
               country: userData.country,
               birthday: userData.birthday?.toDate(),
-              onboardingCompleted: userData.onboardingCompleted || false
+              onboardingCompleted: userData.onboardingCompleted || false,
+              pushTokens: userData.pushTokens,
+              notificationPrefs: userData.notificationPrefs || DEFAULT_NOTIFICATION_PREFS
             };
             setUser(resolvedUser);
           } else {
@@ -411,6 +414,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const updateNotificationPref = async (key: keyof NotificationPrefs, value: boolean): Promise<boolean> => {
+    if (!firebaseUser || !user) return false;
+
+    const notificationPrefs = { ...(user.notificationPrefs || DEFAULT_NOTIFICATION_PREFS), [key]: value };
+    setError(null);
+    try {
+      await setDoc(doc(db, 'users', firebaseUser.uid), { notificationPrefs }, { merge: true });
+      setUser(prev => prev ? { ...prev, notificationPrefs } : prev);
+      return true;
+    } catch (err: any) {
+      setError(mapFirebaseError(err.code) || 'Failed to update notification preferences');
+      return false;
+    }
+  };
+
   const completeOnboardingProfile = async (
     displayName: string,
     country: 'US' | 'OTHER',
@@ -514,6 +532,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     updateDisplayName,
     updateCountry,
     updateBirthday,
+    updateNotificationPref,
     completeOnboardingProfile,
     finishOnboarding,
     deleteAccount,

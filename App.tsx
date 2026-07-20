@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -9,7 +9,7 @@ import MobileAds, { AdsConsent } from 'react-native-google-mobile-ads';
 import * as Notifications from 'expo-notifications';
 import { Text, View, ActivityIndicator, StyleSheet } from 'react-native';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
-import { EventStoreProvider } from './src/contexts/EventStoreContext';
+import { EventStoreProvider, useEventStore } from './src/contexts/EventStoreContext';
 import { FriendsProvider } from './src/contexts/FriendsContext';
 import { NotificationsProvider } from './src/contexts/NotificationsContext';
 import AuthScreen from './src/screens/AuthScreen';
@@ -25,7 +25,7 @@ import FriendsScreen from './src/screens/FriendsScreen';
 import GiveawaysScreen from './src/screens/GiveawaysScreen';
 import GiveawayEntriesScreen from './src/screens/GiveawayEntriesScreen';
 import CommentsScreen from './src/screens/CommentsScreen';
-import NotificationsScreen from './src/screens/NotificationsScreen';
+import NotificationsScreen, { fetchEvent } from './src/screens/NotificationsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import NotificationSettingsScreen from './src/screens/NotificationSettingsScreen';
 import AchievementsScreen from './src/screens/AchievementsScreen';
@@ -38,6 +38,8 @@ import TermsOfUseScreen from './src/screens/TermsOfUseScreen';
 import GroupEditScreen from './src/screens/GroupEditScreen';
 import { MusicEvent, serializeEvent } from './src/types';
 import { colors } from './src/theme';
+import { registerPushTokenAsync } from './src/utils/notifications';
+import type { RootStackParamList } from './src/types/navigation';
 
 // Show notifications as alerts when the app is foregrounded
 Notifications.setNotificationHandler({
@@ -52,6 +54,33 @@ Notifications.setNotificationHandler({
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
+
+// Navigates from a push notification's tap, mirroring NotificationsScreen's
+// in-app handlePress() so tapping a push lands in the same place tapping the
+// in-app inbox item would.
+async function handlePushDeepLink(
+  data: Record<string, any> | undefined,
+  getEventById: (id: string) => MusicEvent | undefined
+) {
+  if (!data || !navigationRef.isReady()) return;
+  const { type, eventId, eventOwnerId, eventTitle } = data;
+
+  if (type === 'friend_request') {
+    navigationRef.navigate('ManageFriends');
+    return;
+  }
+  if (type === 'comment_reply' && eventId && eventOwnerId) {
+    navigationRef.navigate('Comments', { eventId, eventTitle, eventOwnerId });
+    return;
+  }
+  if (eventId) {
+    const event = getEventById(eventId) ?? await fetchEvent(eventId);
+    if (event) {
+      navigationRef.navigate('EventDetail', { event: serializeEvent(event) });
+    }
+  }
+}
 
 function MainTabs({ navigation, onSignIn }: { navigation: any; onSignIn: () => void }) {
   const { isAdmin, user } = useAuth();
@@ -121,12 +150,27 @@ function MainTabs({ navigation, onSignIn }: { navigation: any; onSignIn: () => v
 
 function AppContent() {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const { getEventById } = useEventStore();
   const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-    Notifications.requestPermissionsAsync().catch(console.error);
-  }, [isAuthenticated]);
+    if (!isAuthenticated || !user) return;
+    Notifications.requestPermissionsAsync()
+      .then(() => registerPushTokenAsync(user.id))
+      .catch(console.error);
+  }, [isAuthenticated, user]);
+
+  // Deep-link from a tapped push notification, both while the app is
+  // running/backgrounded (the listener) and when it was launched fresh by
+  // the tap (getLastNotificationResponseAsync).
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      handlePushDeepLink(response.notification.request.content.data, getEventById);
+    });
+    const lastResponse = Notifications.getLastNotificationResponse();
+    if (lastResponse) handlePushDeepLink(lastResponse.notification.request.content.data, getEventById);
+    return () => subscription.remove();
+  }, [getEventById]);
 
   if (isLoading) {
     return (

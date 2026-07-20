@@ -39,7 +39,7 @@ interface Slide {
 }
 
 export default function OnboardingScreen() {
-  const { user, completeOnboardingProfile, finishOnboarding } = useAuth();
+  const { user, completeOnboardingProfile, finishOnboarding, deleteAccount } = useAuth();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
@@ -107,6 +107,18 @@ export default function OnboardingScreen() {
     }
     if (!birthday) {
       Alert.alert('Missing birthday', 'Please select your birthday.');
+      return;
+    }
+    if (getAge(birthday) < 13) {
+      setIsSaving(true);
+      const { success, message } = await deleteAccount();
+      setIsSaving(false);
+      Alert.alert(
+        'Age Restriction',
+        success
+          ? 'Setly is not available to users under 13 years old. Your account has been deleted.'
+          : `Setly is not available to users under 13 years old, and we were unable to delete your account automatically (${message || 'unknown error'}). Please contact setlyhelp@outlook.com so we can remove it for you.`
+      );
       return;
     }
     setIsSaving(true);

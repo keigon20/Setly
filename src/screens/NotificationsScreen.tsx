@@ -34,7 +34,7 @@ function notificationBody(n: AppNotification): string {
   }
 }
 
-async function fetchEvent(eventId: string): Promise<MusicEvent | null> {
+export async function fetchEvent(eventId: string): Promise<MusicEvent | null> {
   try {
     const snap = await getDoc(doc(db, 'events', eventId));
     if (!snap.exists()) return null;

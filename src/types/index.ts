@@ -108,6 +108,14 @@ export interface UserProfile {
   // Set once the user finishes the post-signup onboarding flow (profile
   // form + app-tour slides). Missing/false means onboarding should show.
   onboardingCompleted?: boolean;
+  // Expo push tokens for this user's devices. Appended to on sign-in from a
+  // physical device; stale entries are pruned server-side when a push send
+  // reports the device as unregistered.
+  pushTokens?: string[];
+  // Source of truth for notification preferences (both in-app visibility and
+  // whether the push-sending Cloud Function delivers a given type). Missing
+  // means treat as DEFAULT_NOTIFICATION_PREFS.
+  notificationPrefs?: NotificationPrefs;
 }
 
 // Statistics type

@@ -1,10 +1,9 @@
-import { addDoc, collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { addDoc, collection, doc, setDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { db } from './firebase';
-import { AppNotificationType, DEFAULT_NOTIFICATION_PREFS, NotificationPrefs } from '../types';
-
-const PREFS_KEY = 'notif_prefs';
+import { AppNotificationType, NotificationPrefs } from '../types';
 
 export interface NotificationPayload {
   type: AppNotificationType;
@@ -30,11 +29,12 @@ export async function writeNotification(toUserId: string, payload: NotificationP
   }
 }
 
-export async function scheduleEventReminder(eventId: string, eventTitle: string, eventDate: Date): Promise<void> {
-  const stored = await AsyncStorage.getItem(PREFS_KEY);
-  const prefs: NotificationPrefs = stored
-    ? { ...DEFAULT_NOTIFICATION_PREFS, ...JSON.parse(stored) }
-    : DEFAULT_NOTIFICATION_PREFS;
+export async function scheduleEventReminder(
+  eventId: string,
+  eventTitle: string,
+  eventDate: Date,
+  prefs: NotificationPrefs
+): Promise<void> {
   if (!prefs.all || !prefs.eventReminder) return;
 
   const trigger = new Date(eventDate);
@@ -62,5 +62,27 @@ export async function cancelEventReminder(eventId: string): Promise<void> {
     await Notifications.cancelScheduledNotificationAsync(`reminder_${eventId}`);
   } catch {
     // Notification may not exist — safe to ignore
+  }
+}
+
+// Registers this device for remote push (friend requests, likes, comments,
+// giveaway wins, etc — the notification-tray delivery for everything in
+// `notifications/{uid}/items` that isn't a local event reminder). Pushes are
+// actually sent by a Cloud Function watching that collection; this just
+// makes sure the device's Expo push token is on file for it to find.
+export async function registerPushTokenAsync(userId: string): Promise<void> {
+  // Push tokens aren't available on simulators/emulators.
+  if (!Device.isDevice) return;
+
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
+
+    await updateDoc(doc(db, 'users', userId), { pushTokens: arrayUnion(token) });
+  } catch (err) {
+    console.error('[Notifications] Failed to register push token:', err);
   }
 }

@@ -15,7 +15,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../utils/firebase';
 import { useAuth } from './AuthContext';
-import { MusicEvent, YearStatistics } from '../types';
+import { MusicEvent, YearStatistics, DEFAULT_NOTIFICATION_PREFS } from '../types';
 import { scheduleEventReminder, cancelEventReminder } from '../utils/notifications';
 
 const EVENTS_STORAGE_KEY = 'music_events';
@@ -190,7 +190,12 @@ export function EventStoreProvider({ children }: EventStoreProviderProps) {
       }, { merge: true });
       // Schedule a local reminder for the day after the event if it's in the future
       if (eventData.date > new Date()) {
-        scheduleEventReminder(eventRef.id, eventData.title, eventData.date).catch(console.error);
+        scheduleEventReminder(
+          eventRef.id,
+          eventData.title,
+          eventData.date,
+          user.notificationPrefs ?? DEFAULT_NOTIFICATION_PREFS
+        ).catch(console.error);
       }
       return eventRef.id;
     } else {
