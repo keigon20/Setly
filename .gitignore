@@ -44,3 +44,7 @@ yarn-error.*
 
 # Firebase CLI local deploy cache
 .firebase/
+
+# Firebase CLI debug logs
+firebase-debug.log
+firebase-debug.*.log

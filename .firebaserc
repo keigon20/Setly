@@ -9,6 +9,16 @@
       "hosting": {
         "webapp": [
           "setlyapp"
+        ],
+        "public": [
+          "setly-59268"
+        ]
+      }
+    },
+    "livemusictracker-6eeaf": {
+      "hosting": {
+        "public": [
+          "livemusictracker-6eeaf"
         ]
       }
     }
