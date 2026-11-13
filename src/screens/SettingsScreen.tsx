@@ -26,16 +26,13 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
-  const { user, isAuthenticated, updateDisplayName, updateCountry, updateBirthday, deleteAccount } = useAuth();
+  const { user, isAuthenticated, updateDisplayName, updateBirthday, deleteAccount } = useAuth();
   const eventStore = useEventStore();
   const { backfillDisplayName: backfillFriendDisplayName } = useFriends();
 
   const [showEditName, setShowEditName] = useState(false);
   const [tempName, setTempName] = useState(user?.displayName || '');
   const [isSavingName, setIsSavingName] = useState(false);
-
-  const [showEditCountry, setShowEditCountry] = useState(false);
-  const [isSavingCountry, setIsSavingCountry] = useState(false);
 
   const [showEditBirthday, setShowEditBirthday] = useState(false);
   const [tempBirthday, setTempBirthday] = useState<Date | null>(user?.birthday || null);
@@ -75,17 +72,6 @@ export default function SettingsScreen() {
       });
     } else {
       Alert.alert('Error', 'Failed to update name. Please try again.');
-    }
-  };
-
-  const handleSelectCountry = async (country: 'US' | 'OTHER') => {
-    setIsSavingCountry(true);
-    const success = await updateCountry(country);
-    setIsSavingCountry(false);
-    if (success) {
-      setShowEditCountry(false);
-    } else {
-      Alert.alert('Error', 'Failed to update country. Please try again.');
     }
   };
 
@@ -169,11 +155,6 @@ export default function SettingsScreen() {
             <Text style={styles.sectionTitle}>Account</Text>
             {renderRow('person-outline', 'Edit Name', handleOpenEditName)}
             {renderRow(
-              'flag-outline',
-              `Country: ${user?.country === 'US' ? 'United States' : user?.country === 'OTHER' ? 'Outside the US' : 'Not set'}`,
-              () => setShowEditCountry(true)
-            )}
-            {renderRow(
               'calendar-outline',
               `Birthday: ${user?.birthday ? formatBirthday(user.birthday) : 'Not set'}`,
               handleOpenEditBirthday
@@ -232,46 +213,12 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      <Modal visible={showEditCountry} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Country</Text>
-            <Text style={styles.deleteWarning}>
-              Giveaways are currently only available to residents of the United States. Tell us where you live so we can show you the right content.
-            </Text>
-            <TouchableOpacity
-              style={[styles.countryOption, user?.country === 'US' && styles.countryOptionSelected]}
-              onPress={() => handleSelectCountry('US')}
-              disabled={isSavingCountry}
-            >
-              <Text style={styles.countryOptionText}>United States</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.countryOption, user?.country === 'OTHER' && styles.countryOptionSelected]}
-              onPress={() => handleSelectCountry('OTHER')}
-              disabled={isSavingCountry}
-            >
-              <Text style={styles.countryOptionText}>Outside the United States</Text>
-            </TouchableOpacity>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelBtn]}
-                onPress={() => setShowEditCountry(false)}
-                disabled={isSavingCountry}
-              >
-                <Text style={styles.cancelBtnText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       <Modal visible={showEditBirthday} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Birthday</Text>
             <Text style={styles.deleteWarning}>
-              Giveaways require entrants to be 18 or older. Your birthday is never shown to other users.
+              Setly is for users 13 and older. Your birthday is never shown to other users.
             </Text>
             <DateField
               label="Birthday"
@@ -474,23 +421,6 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  countryOption: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  countryOptionSelected: {
-    borderColor: colors.accent,
-    backgroundColor: `${colors.accent}22`,
-  },
-  countryOptionText: {
-    fontSize: 15,
-    color: colors.textPrimary,
-    textAlign: 'center',
   },
   modalButton: {
     flex: 1,

@@ -24,11 +24,8 @@ import {
   doc,
   getDoc,
   updateDoc,
-  deleteDoc,
-  addDoc,
   deleteField,
   Timestamp,
-  serverTimestamp,
 } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { writeNotification } from '../utils/notifications';
@@ -39,7 +36,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import RemoveContentModal from '../components/RemoveContentModal';
 import SuspendUserModal from '../components/SuspendUserModal';
 import { db } from '../utils/firebase';
-import { MusicEvent, serializeEvent, Giveaway } from '../types';
+import { MusicEvent, serializeEvent } from '../types';
 import { colors } from '../theme';
 import type { RootStackParamList } from '../types/navigation';
 
@@ -126,15 +123,6 @@ export async function performRemoveContent(r: Report, customMessage: string): Pr
   ]);
 }
 
-const EMPTY_GIVEAWAY_FORM = {
-  eventTitle: '',
-  date: '',
-  location: '',
-  ticketType: '',
-  deadline: '',
-  terms: '',
-};
-
 export default function AdminScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
@@ -148,13 +136,6 @@ export default function AdminScreen() {
   const [suspendedUsers, setSuspendedUsers] = useState<SuspendedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Giveaway state
-  const [giveaways, setGiveaways] = useState<Giveaway[]>([]);
-  const [showCreateGiveaway, setShowCreateGiveaway] = useState(false);
-  const [editingGiveaway, setEditingGiveaway] = useState<Giveaway | null>(null);
-  const [giveawayForm, setGiveawayForm] = useState(EMPTY_GIVEAWAY_FORM);
-  const [savingGiveaway, setSavingGiveaway] = useState(false);
 
   // Send notification state
   const [showSendNotif, setShowSendNotif] = useState(false);
@@ -283,127 +264,6 @@ export default function AdminScreen() {
     }
   };
 
-  const handleCreateGiveaway = async () => {
-    const { eventTitle, date, location, ticketType, deadline, terms } = giveawayForm;
-    if (!eventTitle.trim() || !date.trim() || !location.trim() || !ticketType.trim() || !deadline.trim() || !terms.trim()) {
-      Alert.alert('Missing fields', 'Please fill in all fields before saving.');
-      return;
-    }
-    const parsedDate = new Date(date);
-    const parsedDeadline = new Date(deadline);
-    if (isNaN(parsedDate.getTime()) || isNaN(parsedDeadline.getTime())) {
-      Alert.alert('Invalid date', 'Use YYYY-MM-DD format for dates.');
-      return;
-    }
-    setSavingGiveaway(true);
-    try {
-      await addDoc(collection(db, 'giveaways'), {
-        eventTitle: eventTitle.trim(),
-        date: Timestamp.fromDate(parsedDate),
-        location: location.trim(),
-        ticketType: ticketType.trim(),
-        deadline: Timestamp.fromDate(parsedDeadline),
-        terms: terms.trim(),
-        active: true,
-        createdAt: serverTimestamp(),
-        createdBy: user?.id ?? '',
-      });
-      setGiveawayForm(EMPTY_GIVEAWAY_FORM);
-      setShowCreateGiveaway(false);
-    } catch {
-      Alert.alert('Error', 'Failed to create giveaway. Please try again.');
-    } finally {
-      setSavingGiveaway(false);
-    }
-  };
-
-  const handleOpenEdit = (g: Giveaway) => {
-    const toDateStr = (d: Date) => d.toISOString().slice(0, 10);
-    setGiveawayForm({
-      eventTitle: g.eventTitle,
-      date: toDateStr(g.date),
-      location: g.location,
-      ticketType: g.ticketType,
-      deadline: toDateStr(g.deadline),
-      terms: g.terms,
-    });
-    setEditingGiveaway(g);
-  };
-
-  const handleSaveEditGiveaway = async () => {
-    if (!editingGiveaway) return;
-    const { eventTitle, date, location, ticketType, deadline, terms } = giveawayForm;
-    if (!eventTitle.trim() || !date.trim() || !location.trim() || !ticketType.trim() || !deadline.trim() || !terms.trim()) {
-      Alert.alert('Missing fields', 'Please fill in all fields before saving.');
-      return;
-    }
-    const parsedDate = new Date(date);
-    const parsedDeadline = new Date(deadline);
-    if (isNaN(parsedDate.getTime()) || isNaN(parsedDeadline.getTime())) {
-      Alert.alert('Invalid date', 'Use YYYY-MM-DD format for dates.');
-      return;
-    }
-    setSavingGiveaway(true);
-    try {
-      await updateDoc(doc(db, 'giveaways', editingGiveaway.id), {
-        eventTitle: eventTitle.trim(),
-        date: Timestamp.fromDate(parsedDate),
-        location: location.trim(),
-        ticketType: ticketType.trim(),
-        deadline: Timestamp.fromDate(parsedDeadline),
-        terms: terms.trim(),
-      });
-      setEditingGiveaway(null);
-      setGiveawayForm(EMPTY_GIVEAWAY_FORM);
-    } catch {
-      Alert.alert('Error', 'Failed to save changes. Please try again.');
-    } finally {
-      setSavingGiveaway(false);
-    }
-  };
-
-  const handleToggleGiveaway = (g: Giveaway) => {
-    const action = g.active ? 'deactivate' : 'reactivate';
-    Alert.alert(
-      g.active ? 'Deactivate Giveaway' : 'Reactivate Giveaway',
-      `${g.active ? 'Hide' : 'Show'} "${g.eventTitle}" from the Giveaways tab?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: action.charAt(0).toUpperCase() + action.slice(1),
-          onPress: async () => {
-            try {
-              await updateDoc(doc(db, 'giveaways', g.id), { active: !g.active });
-            } catch {
-              Alert.alert('Error', `Failed to ${action} giveaway.`);
-            }
-          },
-        },
-      ],
-    );
-  };
-
-  const handleDeleteGiveaway = (g: Giveaway) => {
-    Alert.alert(
-      'Delete Giveaway',
-      `Permanently delete "${g.eventTitle}"? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteDoc(doc(db, 'giveaways', g.id));
-            } catch {
-              Alert.alert('Error', 'Failed to delete giveaway.');
-            }
-          },
-        },
-      ],
-    );
-  };
-
   const handleLookupUser = async () => {
     const normalized = notifEmail.trim().toLowerCase();
     if (!normalized) return;
@@ -507,24 +367,7 @@ export default function AdminScreen() {
       err => console.warn('[Admin] suspendedUsers listener error:', err.code),
     );
 
-    const giveawaysUnsub = onSnapshot(
-      query(collection(db, 'giveaways'), orderBy('createdAt', 'desc')),
-      snap => setGiveaways(snap.docs.map(d => ({
-        id: d.id,
-        eventTitle: d.data().eventTitle,
-        date: d.data().date?.toDate() || new Date(),
-        location: d.data().location,
-        ticketType: d.data().ticketType,
-        deadline: d.data().deadline?.toDate() || new Date(),
-        terms: d.data().terms,
-        active: d.data().active,
-        createdAt: d.data().createdAt?.toDate() || new Date(),
-        createdBy: d.data().createdBy ?? '',
-      }))),
-      err => console.warn('[Admin] Giveaways listener error:', err.code),
-    );
-
-    return () => { reportsUnsub(); bugsUnsub(); suspendedUsersUnsub(); giveawaysUnsub(); };
+    return () => { reportsUnsub(); bugsUnsub(); suspendedUsersUnsub(); };
   }, []);
 
   const onRefresh = async () => {
@@ -716,69 +559,6 @@ export default function AdminScreen() {
         <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
       </TouchableOpacity>
 
-      {/* Giveaways */}
-      <View style={styles.sectionHeaderRow}>
-        <Text style={[styles.sectionTitle, { marginBottom: 0, marginTop: 0 }]}>Giveaways</Text>
-        <TouchableOpacity
-          style={styles.createGiveawayBtn}
-          onPress={() => setShowCreateGiveaway(true)}
-        >
-          <Ionicons name="add" size={16} color={colors.accent} />
-          <Text style={styles.createGiveawayBtnText}>Create</Text>
-        </TouchableOpacity>
-      </View>
-
-      {giveaways.length === 0 ? (
-        <Text style={[styles.emptyText, { marginTop: 8 }]}>No giveaways yet</Text>
-      ) : (
-        giveaways.map(g => (
-          <TouchableOpacity
-            key={g.id}
-            style={styles.card}
-            activeOpacity={0.75}
-            onPress={() => navigation.navigate('GiveawayEntries', { giveawayId: g.id, giveawayTitle: g.eventTitle })}
-          >
-            <View style={styles.cardHeader}>
-              <Text style={[styles.cardTag, !g.active && { color: colors.textTertiary }]}>
-                {g.active ? 'active' : 'inactive'}
-              </Text>
-              <Text style={styles.cardDate}>{formatDate(g.deadline)} deadline</Text>
-            </View>
-            <Text style={styles.giveawayTitle}>{g.eventTitle}</Text>
-            <Text style={styles.cardRow}>
-              <Text style={styles.cardFieldLabel}>Location: </Text>
-              <Text style={styles.cardFieldValue}>{g.location}</Text>
-            </Text>
-            <Text style={styles.cardRow}>
-              <Text style={styles.cardFieldLabel}>Ticket: </Text>
-              <Text style={styles.cardFieldValue}>{g.ticketType}</Text>
-            </Text>
-            <View style={[styles.actionRow, { marginTop: 10 }]}>
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.actionBtnIgnore]}
-                onPress={e => { e.stopPropagation?.(); handleOpenEdit(g); }}
-              >
-                <Text style={styles.actionBtnIgnoreText}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionBtn, g.active ? styles.actionBtnIgnore : styles.actionBtnAccent]}
-                onPress={e => { e.stopPropagation?.(); handleToggleGiveaway(g); }}
-              >
-                <Text style={[styles.actionBtnIgnoreText, !g.active && { color: colors.accent }]}>
-                  {g.active ? 'Deactivate' : 'Reactivate'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.actionBtnRemove]}
-                onPress={e => { e.stopPropagation?.(); handleDeleteGiveaway(g); }}
-              >
-                <Text style={styles.actionBtnRemoveText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        ))
-      )}
-
       <View style={{ height: 32 }} />
     </ScrollView>
 
@@ -862,8 +642,8 @@ export default function AdminScreen() {
 
           <TouchableOpacity
             style={[
-              styles.saveGiveawayBtn,
-              (!notifRecipient || !notifMessage.trim() || sendingNotif) && styles.saveGiveawayBtnDisabled,
+              styles.primaryBtn,
+              (!notifRecipient || !notifMessage.trim() || sendingNotif) && styles.primaryBtnDisabled,
             ]}
             onPress={handleSendCustomNotif}
             disabled={!notifRecipient || !notifMessage.trim() || sendingNotif}
@@ -871,7 +651,7 @@ export default function AdminScreen() {
           >
             {sendingNotif
               ? <ActivityIndicator color="#fff" size="small" />
-              : <Text style={styles.saveGiveawayBtnText}>Send Notification</Text>
+              : <Text style={styles.primaryBtnText}>Send Notification</Text>
             }
           </TouchableOpacity>
 
@@ -880,109 +660,6 @@ export default function AdminScreen() {
       </KeyboardAvoidingView>
     </Modal>
 
-    {/* Create / Edit Giveaway modal */}
-    <Modal
-      visible={showCreateGiveaway || editingGiveaway !== null}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={() => {
-        if (savingGiveaway) return;
-        setShowCreateGiveaway(false);
-        setEditingGiveaway(null);
-        setGiveawayForm(EMPTY_GIVEAWAY_FORM);
-      }}
-    >
-      <KeyboardAvoidingView
-        style={styles.modalContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>{editingGiveaway ? 'Edit Giveaway' : 'Create Giveaway'}</Text>
-          <TouchableOpacity
-            onPress={() => { setShowCreateGiveaway(false); setEditingGiveaway(null); setGiveawayForm(EMPTY_GIVEAWAY_FORM); }}
-            hitSlop={8}
-            disabled={savingGiveaway}
-          >
-            <Ionicons name="close" size={24} color={colors.textPrimary} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.flex} contentContainerStyle={styles.modalFormContent} keyboardShouldPersistTaps="handled">
-          <Text style={styles.inputLabel}>Event Title</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. Coachella 2025"
-            placeholderTextColor={colors.textTertiary}
-            value={giveawayForm.eventTitle}
-            onChangeText={v => setGiveawayForm(f => ({ ...f, eventTitle: v }))}
-          />
-
-          <Text style={styles.inputLabel}>Event Date</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.textTertiary}
-            value={giveawayForm.date}
-            onChangeText={v => setGiveawayForm(f => ({ ...f, date: v }))}
-            keyboardType="numbers-and-punctuation"
-          />
-
-          <Text style={styles.inputLabel}>Location</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. Indio, CA"
-            placeholderTextColor={colors.textTertiary}
-            value={giveawayForm.location}
-            onChangeText={v => setGiveawayForm(f => ({ ...f, location: v }))}
-          />
-
-          <Text style={styles.inputLabel}>Ticket Type</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 2-Day GA, VIP, Weekend Pass"
-            placeholderTextColor={colors.textTertiary}
-            value={giveawayForm.ticketType}
-            onChangeText={v => setGiveawayForm(f => ({ ...f, ticketType: v }))}
-          />
-
-          <Text style={styles.inputLabel}>Entry Deadline</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.textTertiary}
-            value={giveawayForm.deadline}
-            onChangeText={v => setGiveawayForm(f => ({ ...f, deadline: v }))}
-            keyboardType="numbers-and-punctuation"
-          />
-
-          <Text style={styles.inputLabel}>Terms &amp; Conditions</Text>
-          <TextInput
-            style={[styles.input, styles.inputMultiline]}
-            placeholder="Enter the full terms and conditions users must accept to enter…"
-            placeholderTextColor={colors.textTertiary}
-            value={giveawayForm.terms}
-            onChangeText={v => setGiveawayForm(f => ({ ...f, terms: v }))}
-            multiline
-            textAlignVertical="top"
-          />
-
-          <TouchableOpacity
-            style={[styles.saveGiveawayBtn, savingGiveaway && styles.saveGiveawayBtnDisabled]}
-            onPress={editingGiveaway ? handleSaveEditGiveaway : handleCreateGiveaway}
-            disabled={savingGiveaway}
-            activeOpacity={0.8}
-          >
-            {savingGiveaway ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.saveGiveawayBtnText}>{editingGiveaway ? 'Save Changes' : 'Create Giveaway'}</Text>
-            )}
-          </TouchableOpacity>
-
-          <View style={{ height: 32 }} />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </Modal>
     </View>
   );
 }
@@ -1123,36 +800,8 @@ const styles = StyleSheet.create({
   },
   recipientFoundText: { fontSize: 13, color: '#34C759', fontWeight: '500' },
 
-  // Giveaway section
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 10,
-  },
-  createGiveawayBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: `${colors.accent}18`,
-    borderWidth: 1,
-    borderColor: `${colors.accent}50`,
-  },
-  createGiveawayBtnText: { fontSize: 13, fontWeight: '600', color: colors.accent },
-  giveawayTitle: { fontSize: 15, fontWeight: '600', color: colors.textPrimary, marginBottom: 6 },
-  actionBtnAccent: {
-    backgroundColor: `${colors.accent}18`,
-    borderWidth: 1,
-    borderColor: `${colors.accent}50`,
-  },
-
-  // Create giveaway modal
+  // Modal form
   modalContainer: { flex: 1, backgroundColor: colors.background },
-  flex: { flex: 1 },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1183,13 +832,13 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   inputMultiline: { minHeight: 140, paddingTop: 12 },
-  saveGiveawayBtn: {
+  primaryBtn: {
     backgroundColor: colors.accent,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 24,
   },
-  saveGiveawayBtnDisabled: { opacity: 0.5 },
-  saveGiveawayBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  primaryBtnDisabled: { opacity: 0.5 },
+  primaryBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 });

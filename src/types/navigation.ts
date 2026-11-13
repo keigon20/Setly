@@ -25,5 +25,4 @@ export type RootStackParamList = {
   PrivacyPolicy: undefined;
   TermsOfUse: undefined;
   GroupEdit: { groupKey: string };
-  GiveawayEntries: { giveawayId: string; giveawayTitle: string };
 };

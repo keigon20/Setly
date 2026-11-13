@@ -51,10 +51,9 @@ interface AuthContextType {
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<boolean>;
   updateDisplayName: (displayName: string) => Promise<boolean>;
-  updateCountry: (country: 'US' | 'OTHER') => Promise<boolean>;
   updateBirthday: (birthday: Date) => Promise<boolean>;
   updateNotificationPref: (key: keyof NotificationPrefs, value: boolean) => Promise<boolean>;
-  completeOnboardingProfile: (displayName: string, country: 'US' | 'OTHER', birthday: Date) => Promise<boolean>;
+  completeOnboardingProfile: (displayName: string, birthday: Date) => Promise<boolean>;
   finishOnboarding: () => Promise<boolean>;
   deleteAccount: () => Promise<{ success: boolean; message?: string }>;
   sendVerificationEmail: () => Promise<boolean>;
@@ -137,7 +136,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
               email: firebaseUser.email || '',
               displayName: userData.displayName || firebaseUser.displayName || '',
               createdAt: userData.createdAt?.toDate() || new Date(),
-              country: userData.country,
               birthday: userData.birthday?.toDate(),
               onboardingCompleted: userData.onboardingCompleted || false,
               pushTokens: userData.pushTokens,
@@ -386,20 +384,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const updateCountry = async (country: 'US' | 'OTHER'): Promise<boolean> => {
-    if (!firebaseUser || !user) return false;
-
-    setError(null);
-    try {
-      await setDoc(doc(db, 'users', firebaseUser.uid), { country }, { merge: true });
-      setUser(prev => prev ? { ...prev, country } : prev);
-      return true;
-    } catch (err: any) {
-      setError(mapFirebaseError(err.code) || 'Failed to update country');
-      return false;
-    }
-  };
-
   const updateBirthday = async (birthday: Date): Promise<boolean> => {
     if (!firebaseUser || !user) return false;
 
@@ -431,7 +415,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const completeOnboardingProfile = async (
     displayName: string,
-    country: 'US' | 'OTHER',
     birthday: Date
   ): Promise<boolean> => {
     const trimmed = displayName.trim();
@@ -442,10 +425,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await updateProfile(firebaseUser, { displayName: trimmed });
       await setDoc(
         doc(db, 'users', firebaseUser.uid),
-        { displayName: trimmed, country, birthday: Timestamp.fromDate(birthday) },
+        { displayName: trimmed, birthday: Timestamp.fromDate(birthday) },
         { merge: true }
       );
-      setUser(prev => prev ? { ...prev, displayName: trimmed, country, birthday } : prev);
+      setUser(prev => prev ? { ...prev, displayName: trimmed, birthday } : prev);
       return true;
     } catch (err: any) {
       setError(mapFirebaseError(err.code) || 'Failed to save your info');
@@ -530,7 +513,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     logout,
     resetPassword,
     updateDisplayName,
-    updateCountry,
     updateBirthday,
     updateNotificationPref,
     completeOnboardingProfile,

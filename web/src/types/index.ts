@@ -54,18 +54,5 @@ export interface UserProfile {
   isAdmin?: boolean;
 }
 
-export interface Giveaway {
-  id: string;
-  eventTitle: string;
-  date: Date;
-  location: string;
-  ticketType: string;
-  deadline: Date;
-  terms: string;
-  active: boolean;
-  createdAt: Date;
-  createdBy: string;
-}
-
 export type ReportContentType = 'event' | 'comment' | 'reply' | 'user';
 export type ReportReason = 'spam' | 'harassment' | 'inappropriate' | 'other';

@@ -9,7 +9,6 @@ import { useAuth } from '@/contexts/AuthContext';
 const navItems = [
   { href: '/journal', label: 'Journal', icon: '📓' },
   { href: '/friends', label: 'Friends', icon: '👥' },
-  { href: '/giveaways', label: 'Giveaways', icon: '🎟️' },
   { href: '/profile', label: 'Profile', icon: '👤' },
 ];
 

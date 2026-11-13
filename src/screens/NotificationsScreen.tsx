@@ -29,8 +29,9 @@ function notificationBody(n: AppNotification): string {
     case 'report_outcome':
     case 'new_report':
       return n.message ?? 'You have a moderation update.';
-    case 'giveaway_winner':
-      return n.message ?? 'You won a giveaway!';
+    default:
+      // Retired types (e.g. old giveaway notifications) still in users' inboxes.
+      return (n as AppNotification).message ?? '';
   }
 }
 

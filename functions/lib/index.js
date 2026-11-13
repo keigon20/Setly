@@ -1,7 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendPushOnNotificationCreate = void 0;
+exports.publicConcerts = exports.sendPushOnNotificationCreate = void 0;
 const firestore_1 = require("firebase-functions/v2/firestore");
+const https_1 = require("firebase-functions/v2/https");
+const params_1 = require("firebase-functions/params");
 const app_1 = require("firebase-admin/app");
 const firestore_2 = require("firebase-admin/firestore");
 const expo_server_sdk_1 = require("expo-server-sdk");
@@ -33,7 +35,6 @@ const TYPE_TO_TITLE = {
     content_under_review: 'Setly',
     report_outcome: 'Setly',
     new_report: 'Setly',
-    giveaway_winner: '🎉 You Won!',
 };
 // Mirrors notificationBody() in src/screens/NotificationsScreen.tsx — keep
 // the two in sync; this is the same display text used in-app.
@@ -53,8 +54,8 @@ function notificationBody(n) {
         case 'report_outcome':
         case 'new_report':
             return n.message ?? 'You have a moderation update.';
-        case 'giveaway_winner':
-            return n.message ?? 'You won a giveaway!';
+        default:
+            return n.message ?? '';
     }
 }
 function isPushAllowed(type, prefs) {
@@ -113,6 +114,54 @@ exports.sendPushOnNotificationCreate = (0, firestore_1.onDocumentCreated)('notif
         await db.collection('users').doc(userId).update({
             pushTokens: firestore_2.FieldValue.arrayRemove(...staleTokens),
         });
+    }
+});
+// ---------------------------------------------------------------------------
+// Public, read-only feed of ONE user's concerts for their personal website.
+// Only events that aren't hidden are returned, with a whitelist of fields
+// (no cost, no social data). The uid comes from the PORTFOLIO_UID param
+// (set in functions/.env or prompted on deploy).
+// ---------------------------------------------------------------------------
+const PORTFOLIO_UID = (0, params_1.defineString)('PORTFOLIO_UID');
+const asNumber = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+const asHttpsUrl = (v) => (typeof v === 'string' && v.startsWith('https://') ? v : null);
+exports.publicConcerts = (0, https_1.onRequest)({ cors: true, maxInstances: 2, memory: '256MiB' }, async (req, res) => {
+    if (req.method !== 'GET') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+    }
+    const uid = PORTFOLIO_UID.value();
+    if (!uid) {
+        res.status(500).json({ error: 'PORTFOLIO_UID is not configured' });
+        return;
+    }
+    try {
+        const snap = await db.collection('events').where('userId', '==', uid).get();
+        const concerts = snap.docs
+            .map((doc) => ({ id: doc.id, data: doc.data() }))
+            // Missing isHidden means visible, matching the app's own handling.
+            .filter(({ data }) => data.isHidden !== true)
+            .map(({ id, data }) => ({
+            id,
+            title: typeof data.title === 'string' ? data.title : '',
+            artists: Array.isArray(data.artists) ? data.artists.filter((a) => typeof a === 'string') : [],
+            venue: typeof data.venue === 'string' ? data.venue : '',
+            festivalName: typeof data.festivalName === 'string' ? data.festivalName : null,
+            date: data.date?.toDate?.().toISOString() ?? null,
+            notes: typeof data.notes === 'string' ? data.notes : '',
+            imageUrl: asHttpsUrl(data.imageUri),
+            overallRating: asNumber(data.overallRating),
+            soundRating: asNumber(data.soundRating),
+            crowdRating: asNumber(data.crowdRating),
+            setlistRating: asNumber(data.setlistRating),
+        }))
+            .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+        res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
+        res.json({ concerts });
+    }
+    catch (err) {
+        console.error('[publicConcerts] Failed to load concerts:', err);
+        res.status(500).json({ error: 'Could not load concerts' });
     }
 });
 //# sourceMappingURL=index.js.map

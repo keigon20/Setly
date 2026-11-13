@@ -1,5 +1,6 @@
 const { withProjectBuildGradle } = require('@expo/config-plugins');
 const withPatchFirebaseAppCheckRecaptcha = require('./plugins/withPatchFirebaseAppCheckRecaptcha');
+const withMinPodDeploymentTarget = require('./plugins/withMinPodDeploymentTarget');
 
 const APP_VARIANT = process.env.EXPO_PUBLIC_APP_VARIANT === 'staging' ? 'staging' : 'production';
 const isStaging = APP_VARIANT === 'staging';
@@ -48,6 +49,14 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: IOS_BUNDLE_ID,
+      // Seeds EAS's remote build-number counter above the "1" already used
+      // by the Jul 2026 production build, since we don't know if that one
+      // was ever submitted to App Store Connect. Once eas.json has
+      // appVersionSource: "remote", this value only matters the first time
+      // (it's ignored - with a build-time warning - on every build after
+      // the remote counter exists); safe to delete once autoIncrement has
+      // run once. See production.ios.autoIncrement in eas.json.
+      buildNumber: '2',
       googleServicesFile: isStaging
         ? './GoogleService-Info.plist'
         : './GoogleService-Info.production.plist',
@@ -73,6 +82,7 @@ module.exports = {
     plugins: [
       withKotlinMetadataSkip,
       withPatchFirebaseAppCheckRecaptcha,
+      withMinPodDeploymentTarget,
       '@react-native-community/datetimepicker',
       'expo-sharing',
       'expo-web-browser',

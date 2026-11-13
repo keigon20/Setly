@@ -99,11 +99,8 @@ export interface UserProfile {
   displayName: string;
   createdAt: Date;
   isAdmin?: boolean;
-  // Self-reported in onboarding/Settings: "US" or "OTHER". Unset until the
-  // user sets it - giveaways are gated on this being "US".
-  country?: 'US' | 'OTHER';
-  // Self-reported in onboarding, used only to gate giveaway eligibility
-  // (18+). Never shown to other users.
+  // Self-reported in onboarding, used only to enforce the 13+ minimum age.
+  // Never shown to other users.
   birthday?: Date;
   // Set once the user finishes the post-signup onboarding flow (profile
   // form + app-tour slides). Missing/false means onboarding should show.
@@ -139,8 +136,7 @@ export type AppNotificationType =
   | 'comment_reply'
   | 'content_under_review'
   | 'report_outcome'
-  | 'new_report'
-  | 'giveaway_winner';
+  | 'new_report';
 
 export interface NotificationPrefs {
   all: boolean;
@@ -173,19 +169,6 @@ export interface AppNotification {
   message?: string;
   read: boolean;
   createdAt: Date;
-}
-
-export interface Giveaway {
-  id: string;
-  eventTitle: string;
-  date: Date;
-  location: string;
-  ticketType: string;
-  deadline: Date;
-  terms: string;
-  active: boolean;
-  createdAt: Date;
-  createdBy: string;
 }
 
 // Auth state type

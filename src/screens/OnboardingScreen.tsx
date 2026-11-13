@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -38,6 +38,34 @@ interface Slide {
   isAddButton?: boolean;
 }
 
+const SLIDES: Slide[] = [
+  {
+    key: 'journal',
+    title: 'Your Concert Journal',
+    description: 'Every show you log is saved here — your saved concerts will show up on the Journal tab.',
+    icon: 'journal',
+  },
+  {
+    key: 'add',
+    title: 'Log a Show',
+    description: 'Tap the add button to add an event you went to.',
+    icon: 'add',
+    isAddButton: true,
+  },
+  {
+    key: 'friends',
+    title: 'Friends',
+    description: "View your friends' concerts here. Like and comment on their shows.",
+    icon: 'people',
+  },
+  {
+    key: 'profile',
+    title: 'Profile',
+    description: 'Your stats, add friends, and view your achievements.',
+    icon: 'person-circle',
+  },
+];
+
 export default function OnboardingScreen() {
   const { user, completeOnboardingProfile, finishOnboarding, deleteAccount } = useAuth();
   const insets = useSafeAreaInsets();
@@ -45,64 +73,18 @@ export default function OnboardingScreen() {
   const scrollRef = useRef<ScrollView>(null);
 
   const [phase, setPhase] = useState<'form' | 'slides'>(
-    user?.country && user?.birthday ? 'slides' : 'form'
+    user?.birthday ? 'slides' : 'form'
   );
   const [displayName, setDisplayName] = useState(user?.displayName || '');
-  const [country, setCountry] = useState<'US' | 'OTHER' | null>(user?.country || null);
   const [birthday, setBirthday] = useState<Date | null>(user?.birthday || null);
   const [isSaving, setIsSaving] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
 
-  const isUSAdult = country === 'US' && !!birthday && getAge(birthday) >= 18;
-
-  const slides: Slide[] = useMemo(() => {
-    const base: Slide[] = [
-      {
-        key: 'journal',
-        title: 'Your Concert Journal',
-        description: 'Every show you log is saved here — your saved concerts will show up on the Journal tab.',
-        icon: 'journal',
-      },
-      {
-        key: 'add',
-        title: 'Log a Show',
-        description: 'Tap the add button to add an event you went to.',
-        icon: 'add',
-        isAddButton: true,
-      },
-      {
-        key: 'friends',
-        title: 'Friends',
-        description: "View your friends' concerts here. Like and comment on their shows.",
-        icon: 'people',
-      },
-    ];
-    if (isUSAdult) {
-      base.push({
-        key: 'giveaways',
-        title: 'Giveaways',
-        description: 'Giveaways will periodically appear. Enter here for a chance to win tickets.',
-        icon: 'gift',
-      });
-    }
-    base.push({
-      key: 'profile',
-      title: 'Profile',
-      description: 'Your stats, add friends, and view your achievements.',
-      icon: 'person-circle',
-    });
-    return base;
-  }, [isUSAdult]);
-
-  const isLastSlide = slideIndex === slides.length - 1;
+  const isLastSlide = slideIndex === SLIDES.length - 1;
 
   const handleSaveProfile = async () => {
     if (!displayName.trim()) {
       Alert.alert('Missing name', 'Please enter a display name.');
-      return;
-    }
-    if (!country) {
-      Alert.alert('Missing country', 'Please select your country.');
       return;
     }
     if (!birthday) {
@@ -122,7 +104,7 @@ export default function OnboardingScreen() {
       return;
     }
     setIsSaving(true);
-    const success = await completeOnboardingProfile(displayName, country, birthday);
+    const success = await completeOnboardingProfile(displayName, birthday);
     setIsSaving(false);
     if (success) {
       setPhase('slides');
@@ -171,22 +153,6 @@ export default function OnboardingScreen() {
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Country</Text>
-            <TouchableOpacity
-              style={[styles.countryOption, country === 'US' && styles.countryOptionSelected]}
-              onPress={() => setCountry('US')}
-            >
-              <Text style={styles.countryOptionText}>United States</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.countryOption, country === 'OTHER' && styles.countryOptionSelected]}
-              onPress={() => setCountry('OTHER')}
-            >
-              <Text style={styles.countryOptionText}>Outside the United States</Text>
-            </TouchableOpacity>
-          </View>
-
           <DateField
             label="Birthday"
             value={birthday}
@@ -197,7 +163,7 @@ export default function OnboardingScreen() {
           <View style={styles.reassuranceBox}>
             <Ionicons name="lock-closed" size={16} color={colors.textSecondary} style={styles.reassuranceIcon} />
             <Text style={styles.reassuranceText}>
-              Your country and birthday are never shown to other users — they're only used to determine giveaway eligibility.
+              Your birthday is never shown to other users — it's only used to confirm you're 13 or older.
             </Text>
           </View>
 
@@ -223,7 +189,7 @@ export default function OnboardingScreen() {
         onMomentumScrollEnd={handleMomentumScrollEnd}
         scrollEnabled={!isSaving}
       >
-        {slides.map(slide => (
+        {SLIDES.map(slide => (
           <View key={slide.key} style={[styles.slide, { width, paddingTop: insets.top + 40 }]}>
             <View style={styles.illustrationCircle}>
               {slide.isAddButton ? (
@@ -242,7 +208,7 @@ export default function OnboardingScreen() {
 
       <View style={[styles.slideFooter, { paddingBottom: insets.bottom + 20 }]}>
         <View style={styles.dots}>
-          {slides.map((slide, i) => (
+          {SLIDES.map((slide, i) => (
             <View key={slide.key} style={[styles.dot, i === slideIndex && styles.dotActive]} />
           ))}
         </View>
@@ -297,23 +263,6 @@ const styles = StyleSheet.create({
     padding: 14,
     fontSize: 16,
     color: colors.textPrimary,
-  },
-  countryOption: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  countryOptionSelected: {
-    borderColor: colors.accent,
-    backgroundColor: `${colors.accent}22`,
-  },
-  countryOptionText: {
-    fontSize: 15,
-    color: colors.textPrimary,
-    textAlign: 'center',
   },
   reassuranceBox: {
     flexDirection: 'row',

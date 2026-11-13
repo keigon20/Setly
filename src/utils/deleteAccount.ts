@@ -27,7 +27,8 @@ async function deleteSubcollection(first: string, ...rest: string[]): Promise<vo
 //    Note: subcollections under deleted comments (e.g. other users' replies to
 //    the deleted comment) are left in place; they're third-party data and are
 //    orphaned rather than deleted.
-// 3. Giveaway entries.
+// 3. Entries from the retired giveaways feature (still in Firestore for older
+//    accounts).
 // 4. Friend graph (both sides) and pending friend requests.
 // 5. User's own notification inbox.
 // 6. The user profile doc itself.

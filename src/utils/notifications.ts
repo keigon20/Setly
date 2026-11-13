@@ -66,7 +66,7 @@ export async function cancelEventReminder(eventId: string): Promise<void> {
 }
 
 // Registers this device for remote push (friend requests, likes, comments,
-// giveaway wins, etc — the notification-tray delivery for everything in
+// moderation updates, etc — the notification-tray delivery for everything in
 // `notifications/{uid}/items` that isn't a local event reminder). Pushes are
 // actually sent by a Cloud Function watching that collection; this just
 // makes sure the device's Expo push token is on file for it to find.

@@ -22,19 +22,6 @@ function FriendsIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-function TicketIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" {...props}>
-      <path
-        d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1.5a1.75 1.75 0 0 0 0 3.5V16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a1.75 1.75 0 0 0 0-3.5Z"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M14 7v10" strokeLinecap="round" strokeDasharray="1.5 2.5" />
-    </svg>
-  );
-}
-
 const features = [
   {
     Icon: JournalIcon,
@@ -47,12 +34,6 @@ const features = [
     title: 'Share With Friends',
     description:
       'Connect with friends who love live music. See what shows they\'ve been to and discover new artists through their experiences.',
-  },
-  {
-    Icon: TicketIcon,
-    title: 'Win Tickets',
-    description:
-      'Enter exclusive giveaways for upcoming shows. Members get first access to ticket drops and special events.',
   },
 ];
 
@@ -110,7 +91,7 @@ export default function LandingPage() {
           <h2 className="text-2xl font-bold text-center text-textPrimary mb-10">
             Everything you need to track your live music life
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             {features.map((feature) => (
               <div
                 key={feature.title}

@@ -22,8 +22,6 @@ import SearchEventScreen from './src/screens/SearchEventScreen';
 import AddEventScreen from './src/screens/AddEventScreen';
 import EventDetailScreen from './src/screens/EventDetailScreen';
 import FriendsScreen from './src/screens/FriendsScreen';
-import GiveawaysScreen from './src/screens/GiveawaysScreen';
-import GiveawayEntriesScreen from './src/screens/GiveawayEntriesScreen';
 import CommentsScreen from './src/screens/CommentsScreen';
 import NotificationsScreen, { fetchEvent } from './src/screens/NotificationsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -83,8 +81,7 @@ async function handlePushDeepLink(
 }
 
 function MainTabs({ navigation, onSignIn }: { navigation: any; onSignIn: () => void }) {
-  const { isAdmin, user } = useAuth();
-  const isGiveawaysEligible = user?.country === 'US';
+  const { isAdmin } = useAuth();
 
   return (
     <Tab.Navigator
@@ -118,15 +115,6 @@ function MainTabs({ navigation, onSignIn }: { navigation: any; onSignIn: () => v
           tabBarIcon: ({ color, size }) => <Ionicons name="people" color={color} size={size} />,
         }}
       />
-      {isGiveawaysEligible && (
-        <Tab.Screen
-          name="Giveaways"
-          component={GiveawaysScreen}
-          options={{
-            tabBarIcon: ({ color, size }) => <Ionicons name="gift" color={color} size={size} />,
-          }}
-        />
-      )}
       <Tab.Screen
         name="Profile"
         options={{
@@ -215,7 +203,6 @@ function AppContent() {
         <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
         <Stack.Screen name="TermsOfUse" component={TermsOfUseScreen} />
         <Stack.Screen name="GroupEdit" component={GroupEditScreen} />
-        <Stack.Screen name="GiveawayEntries" component={GiveawayEntriesScreen} />
       </Stack.Navigator>
       <MigrateEventsModal />
     </>
